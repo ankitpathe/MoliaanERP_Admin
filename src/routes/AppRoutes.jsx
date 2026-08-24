@@ -24,7 +24,7 @@ import BranchDetails from '../pages/admin/branches/BranchDetails';
 import Sales from '../pages/admin/sales/index';
 import Purchase from '../pages/admin/purchase/index';
 import Inventory from '../pages/admin/inventory/index';
-import Billing from '../pages/admin/billing/Billing';
+import Billing from '../pages/admin/billing/index';
 import Tax from '../pages/admin/tax/Tax';
 import MasterData from '../pages/admin/master-data/MasterData';
 

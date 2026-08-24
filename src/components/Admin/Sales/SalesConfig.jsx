@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, FileText, Percent, CreditCard, RefreshCw, Printer, Save, AlertTriangle } from 'lucide-react';
+import { FileText, Percent, CreditCard, RefreshCw, Printer, Shield } from 'lucide-react';
 import { logActivity } from '../../../services/activityLogger';
 import { useToast } from '../../../hooks/useToast';
+
+import InvoiceSequenceTab from './InvoiceSequenceTab';
+import DiscountPolicyTab from './DiscountPolicyTab';
+import PaymentCreditTab from './PaymentCreditTab';
+import ReturnPolicyTab from './ReturnPolicyTab';
+import PosSettingsTab from './PosSettingsTab';
 
 const STORAGE_KEY = 'erp_sales_config';
 
@@ -13,11 +19,11 @@ const DEFAULT_CONFIG = {
   maxDiscountPercent: 15,
   allowItemDiscount: true,
   allowPriceOverride: false,
+  allowedPaymentMethods: ['cash', 'upi'],
   defaultPaymentDueDays: 30,
   allowSalesReturn: true,
   returnWindowDays: 7,
   requireInvoiceForReturn: true,
-  autoPrintInvoice: false,
   roundOffTotal: true,
   allowNegativeStockSale: false
 };
@@ -36,11 +42,15 @@ export default function SalesConfig() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
       }
     } catch (e) {
-      console.error('Error fetching sales config:', e);
+      console.error('Error loading sales config:', e);
     }
   }, []);
 
-  // Generate real-time invoice numbering sequence preview
+  const handleChange = (key, value) => {
+    setConfig(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Generate sequence string preview on right side
   const generatePreview = () => {
     const currentYear = new Date().getFullYear();
     const shortYear = currentYear.toString().slice(-2);
@@ -73,7 +83,7 @@ export default function SalesConfig() {
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm('Reset all sales settings to standard default parameters?')) {
+    if (window.confirm('Reset all sales settings to standard defaults?')) {
       setConfig(DEFAULT_CONFIG);
       toast.showInfo('Reset Completed', 'Sales configurations restored to factory defaults.');
     }
@@ -90,9 +100,9 @@ export default function SalesConfig() {
   return (
     <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', paddingBottom: '60px' }} className="sales-config-layout">
       
-      {/* Navigation tabs */}
+      {/* LEFT: Nav Tabs */}
       <div style={{
-        width: '260px',
+        width: '240px',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
@@ -131,7 +141,7 @@ export default function SalesConfig() {
         })}
       </div>
 
-      {/* Main card viewport */}
+      {/* MIDDLE: Form Panel Viewport */}
       <div style={{
         flex: 1,
         background: '#ffffff',
@@ -140,235 +150,17 @@ export default function SalesConfig() {
         border: '1px solid #e5e7eb',
         display: 'flex',
         flexDirection: 'column',
-        gap: '24px'
-      }}>
+        gap: '24px',
+        minWidth: '320px'
+      }} className="sales-config-middle">
         
-        {/* Render Sequence tab */}
-        {activeTab === 'sequence' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: 0, borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
-              Invoice Numbering Sequence Settings
-            </h3>
-            
-            <div style={{ background: '#fafafa', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6' }}>
-              <span style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 700 }}>Live Sequence Preview</span>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#059669', marginTop: '6px', fontFamily: 'monospace' }}>
-                {generatePreview()}
-              </div>
-            </div>
+        {activeTab === 'sequence' && <InvoiceSequenceTab config={config} onChange={handleChange} />}
+        {activeTab === 'discount' && <DiscountPolicyTab config={config} onChange={handleChange} />}
+        {activeTab === 'payment' && <PaymentCreditTab config={config} onChange={handleChange} />}
+        {activeTab === 'return' && <ReturnPolicyTab config={config} onChange={handleChange} />}
+        {activeTab === 'pos' && <PosSettingsTab config={config} onChange={handleChange} />}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-grid">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Invoice Prefix</label>
-                <input
-                  type="text"
-                  value={config.invoicePrefix}
-                  onChange={(e) => setConfig(p => ({ ...p, invoicePrefix: e.target.value }))}
-                  placeholder="e.g. INV"
-                  style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Invoice Separator character</label>
-                <input
-                  type="text"
-                  value={config.invoiceSeparator}
-                  onChange={(e) => setConfig(p => ({ ...p, invoiceSeparator: e.target.value }))}
-                  placeholder="e.g. / or -"
-                  style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-grid">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Next Invoice Sequence Number</label>
-                <input
-                  type="number"
-                  value={config.nextInvoiceNumber}
-                  onChange={(e) => setConfig(p => ({ ...p, nextInvoiceNumber: parseInt(e.target.value) || 0 }))}
-                  style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                />
-              </div>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer', marginTop: '24px' }}>
-                <input
-                  type="checkbox"
-                  checked={config.includeFinancialYear}
-                  onChange={(e) => setConfig(p => ({ ...p, includeFinancialYear: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-                />
-                <span>Include current Financial Year token (e.g. 2026-27)</span>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Discount Policy tab */}
-        {activeTab === 'discount' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: 0, borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
-              Corporate Discount & Editing Policies
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-grid">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Maximum Global Discount limit (%)</label>
-                <input
-                  type="number"
-                  max="100"
-                  min="0"
-                  value={config.maxDiscountPercent}
-                  onChange={(e) => setConfig(p => ({ ...p, maxDiscountPercent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                  style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                />
-              </div>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer', marginTop: '24px' }}>
-                <input
-                  type="checkbox"
-                  checked={config.allowItemDiscount}
-                  onChange={(e) => setConfig(p => ({ ...p, allowItemDiscount: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-                />
-                <span>Allow individual product item discounts on terminal billing screen</span>
-              </label>
-            </div>
-
-            <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', padding: '16px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <AlertTriangle size={18} style={{ color: '#d97706', marginTop: '2px', flexShrink: 0 }} />
-              <div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e', display: 'block' }}>Warning: Price Override Permissions</span>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#b45309', cursor: 'pointer', marginTop: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={config.allowPriceOverride}
-                    onChange={(e) => setConfig(p => ({ ...p, allowPriceOverride: e.target.checked }))}
-                    style={{ width: '16px', height: '16px', accentColor: '#d97706' }}
-                  />
-                  <span>Allow billing terminal operator to override product MRP/selling prices manually</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Payment & Credit tab */}
-        {activeTab === 'payment' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: 0, borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
-              Payment Terms & Credit Policies
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-grid">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Default Customer Credit Due (Days)</label>
-                <input
-                  type="number"
-                  value={config.defaultPaymentDueDays}
-                  onChange={(e) => setConfig(p => ({ ...p, defaultPaymentDueDays: parseInt(e.target.value) || 0 }))}
-                  style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Return Policy tab */}
-        {activeTab === 'return' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: 0, borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
-              Corporate Returns & Credit Note Policies
-            </h3>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.allowSalesReturn}
-                onChange={(e) => setConfig(p => ({ ...p, allowSalesReturn: e.target.checked }))}
-                style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-              />
-              <span>Enable sales returns and exchange policies on POS systems</span>
-            </label>
-
-            {config.allowSalesReturn && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', animation: 'fade-in 0.2s ease' }} className="responsive-grid">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Sales Return Window (Days)</label>
-                  <input
-                    type="number"
-                    value={config.returnWindowDays}
-                    onChange={(e) => setConfig(p => ({ ...p, returnWindowDays: parseInt(e.target.value) || 0 }))}
-                    style={{ padding: '10px', fontSize: '0.875rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
-                  />
-                </div>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer', marginTop: '24px' }}>
-                  <input
-                    type="checkbox"
-                    checked={config.requireInvoiceForReturn}
-                    onChange={(e) => setConfig(p => ({ ...p, requireInvoiceForReturn: e.target.checked }))}
-                    style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-                  />
-                  <span>Enforce original tax invoice verification before accepting return items</span>
-                </label>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* POS Settings tab */}
-        {activeTab === 'pos' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: 0, borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
-              Terminal Billing & Cash Register Configuration
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={config.autoPrintInvoice}
-                  onChange={(e) => setConfig(p => ({ ...p, autoPrintInvoice: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-                />
-                <span>Automatically trigger receipt printer dialog window on billing save confirmation</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#4b5563', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={config.roundOffTotal}
-                  onChange={(e) => setConfig(p => ({ ...p, roundOffTotal: e.target.checked }))}
-                  style={{ width: '16px', height: '16px', accentColor: '#7c7a6e' }}
-                />
-                <span>Automatically round off total sales receipt amounts to the nearest rupee (₹1)</span>
-              </label>
-            </div>
-
-            <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', padding: '16px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start', marginTop: '8px' }}>
-              <AlertTriangle size={18} style={{ color: '#d97706', marginTop: '2px', flexShrink: 0 }} />
-              <div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e', display: 'block' }}>Warning: Negative Inventory Operations</span>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#b45309', cursor: 'pointer', marginTop: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={config.allowNegativeStockSale}
-                    onChange={(e) => setConfig(p => ({ ...p, allowNegativeStockSale: e.target.checked }))}
-                    style={{ width: '16px', height: '16px', accentColor: '#d97706' }}
-                  />
-                  <span>Allow negative inventory sales (POS terminal will allow selling items even if stock is 0)</span>
-                </label>
-                <span style={{ display: 'block', fontSize: '0.725rem', color: '#b45309', marginTop: '4px' }}>
-                  Enabling this configuration may cause stock volume mismatches and desynchronization in tax bookkeeping ledger reports.
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Global form footer actions */}
+        {/* Global actions footer */}
         <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid #f3f4f6', paddingTop: '16px', justifyContent: 'flex-end' }}>
           <button
             type="button"
@@ -407,12 +199,88 @@ export default function SalesConfig() {
 
       </div>
 
+      {/* RIGHT: Live Preview Panel */}
+      <div style={{
+        width: '320px',
+        background: '#f8fafc',
+        borderRadius: '16px',
+        border: '1px solid #e2e8f0',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        alignSelf: 'stretch'
+      }} className="sales-config-preview">
+        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Live Format Preview</span>
+        
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid #cbd5e1',
+          borderRadius: '8px',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          fontFamily: 'monospace',
+          fontSize: '0.65rem',
+          color: '#334155'
+        }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700 }}>Invoicing Rules</span>
+            <Shield size={14} style={{ color: '#64748b' }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ color: '#64748b' }}>Generated Invoice Number:</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f766e' }}>{generatePreview()}</span>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Max Discount limit:</span>
+              <span style={{ fontWeight: 'bold' }}>{config.maxDiscountPercent}%</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Item Discount:</span>
+              <span>{config.allowItemDiscount ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Price Override:</span>
+              <span style={{ color: config.allowPriceOverride ? '#d97706' : 'inherit', fontWeight: config.allowPriceOverride ? 'bold' : 'normal' }}>{config.allowPriceOverride ? 'Allowed' : 'Blocked'}</span>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Credit Due Days:</span>
+              <span style={{ fontWeight: 'bold' }}>{config.defaultPaymentDueDays} Days</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Return Policy:</span>
+              <span>{config.allowSalesReturn ? `${config.returnWindowDays} Days window` : 'No returns'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Round-off to ₹1:</span>
+              <span>{config.roundOffTotal ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Negative Stock Sale:</span>
+              <span style={{ color: config.allowNegativeStockSale ? '#dc2626' : 'inherit', fontWeight: config.allowNegativeStockSale ? 'bold' : 'normal' }}>{config.allowNegativeStockSale ? 'Allowed' : 'Blocked'}</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <style>{`
-        @media (max-width: 768px) {
+        @media (max-width: 1023px) {
           .sales-config-layout {
             flex-direction: column !important;
           }
           .sales-config-left {
+            width: 100% !important;
+          }
+          .sales-config-preview {
             width: 100% !important;
           }
           .responsive-grid {
