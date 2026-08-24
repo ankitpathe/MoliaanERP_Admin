@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import MoliaanLogo from '../../../assets/Moliaan-Full-Logo2.svg';
 import { 
   LayoutDashboard, 
   Users, 
@@ -177,28 +178,15 @@ export default function AdminSidebar({ onCloseMobile }) {
       {/* Brand Logo & Name */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', paddingLeft: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #7c7a6e, #9a988d)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '1rem'
-          }}>
-            O
-          </div>
-          <span style={{ 
-            fontSize: '1.25rem', 
-            fontWeight: 700, 
-            color: '#1f2937',
-            letterSpacing: '-0.5px'
-          }}>
-            ONE ERP
-          </span>
+          <img 
+            src={MoliaanLogo} 
+            alt="Moliaan ERP" 
+            style={{ 
+              height: '38px', 
+              objectFit: 'contain',
+              maxWidth: '180px'
+            }} 
+          />
         </div>
 
         {onCloseMobile && (
