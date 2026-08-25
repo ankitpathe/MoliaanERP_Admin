@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Search, Calendar, Landmark, CreditCard } from 'lucide-react';
+import { Download, Search, Calendar, CreditCard, ChevronDown, ChevronUp, Printer, CheckCircle } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 
 export default function InvoicesReport() {
@@ -8,13 +8,15 @@ export default function InvoicesReport() {
   const [search, setSearch] = useState('');
   const [paymentMode, setPaymentMode] = useState('All');
   const [counterFilter, setCounterFilter] = useState('All');
-  const [dateRange, setDateRange] = useState('ALL'); // ALL, TODAY, LAST_7, LAST_30
+  const [dateRange, setDateRange] = useState('ALL'); // ALL, TODAY, WEEK, CUSTOM
+  
+  // Expandable invoice details state
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState(null);
 
   useEffect(() => {
     try {
       const sales = JSON.parse(localStorage.getItem('erp_sales') || '[]');
       if (sales.length === 0) {
-        // Seed some sample sales if empty for visual reports
         const sampleSales = [
           {
             id: 'INV-402910',
@@ -29,7 +31,8 @@ export default function InvoicesReport() {
             counterId: 'Counter-01',
             status: 'Paid',
             items: [
-              { name: 'Product A', price: 500, qty: 2, gstAmount: 152.54, cgst: 76.27, sgst: 76.27, igst: 0, taxableValue: 847.46 }
+              { name: 'Surf Excel Easy Wash 1kg', price: 170, qty: 2, gstAmount: 51.86, cgst: 25.93, sgst: 25.93, taxableValue: 288.14 },
+              { name: 'Fortune Soyabean Oil 1L', price: 160, qty: 1, gstAmount: 8.00, cgst: 4.00, sgst: 4.00, taxableValue: 152.00 }
             ]
           },
           {
@@ -45,7 +48,7 @@ export default function InvoicesReport() {
             counterId: 'Counter-02',
             status: 'Paid',
             items: [
-              { name: 'Product B', price: 890, qty: 1, gstAmount: 135.76, cgst: 67.88, sgst: 67.88, igst: 0, taxableValue: 754.24 }
+              { name: 'Britannia Marie Gold 250g', price: 30, qty: 10, gstAmount: 45.76, cgst: 22.88, sgst: 22.88, taxableValue: 254.24 }
             ]
           }
         ];
@@ -74,17 +77,18 @@ export default function InvoicesReport() {
     if (dateRange === 'TODAY') {
       const todayStr = new Date().toISOString().split('T')[0];
       matchesDate = inv.date === todayStr;
-    } else if (dateRange === 'LAST_7') {
+    } else if (dateRange === 'WEEK') {
       matchesDate = invTime >= now - 7 * 86400000;
-    } else if (dateRange === 'LAST_30') {
-      matchesDate = invTime >= now - 30 * 86400000;
     }
 
     return matchesSearch && matchesPayment && matchesCounter && matchesDate;
   });
 
+  // KPI Calculations
   const totalRevenue = filtered.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
   const totalTax = filtered.reduce((sum, inv) => sum + (Number(inv.totalGST) || 0), 0);
+  const averageBillSize = filtered.length > 0 ? (totalRevenue / filtered.length) : 0;
+  const invoicesCount = filtered.length;
 
   const handleExportCSV = () => {
     try {
@@ -117,130 +121,237 @@ export default function InvoicesReport() {
     }
   };
 
+  const handlePrint = (inv) => {
+    toast.showInfo('Print Job', `Opening print preview for invoice ${inv.id}`);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice ${inv.id}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; color: #111; }
+            .header { text-align: center; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { padding: 6px; text-align: left; border-bottom: 1px dashed #ccc; }
+            .right { text-align: right; }
+          </style>
+        </head>
+        <body onload="window.print();window.close();">
+          <div class="header">
+            <h3>MOLIAAN ERP INVOICE</h3>
+            <p>ID: ${inv.id} | Date: ${inv.date} ${inv.time || ''}</p>
+            <p>Customer: ${inv.customerName || 'Walk-in'}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th class="right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(inv.items || []).map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.qty}</td>
+                  <td class="right">₹${Number(item.price * item.qty).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <p class="right" style="font-weight:bold;margin-top:20px;">Grand Total: ₹${Number(inv.total).toFixed(2)}</p>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="space-y-6">
       
-      {/* Top Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      {/* Top Title Bar */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#111827', margin: 0 }}>Invoices Audit Report</h2>
-          <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>Consolidated platform sales receipts and taxation data check.</span>
+          <h2 className="text-xl font-extrabold text-slate-800">Invoices Audit Report</h2>
+          <p className="text-xs text-slate-500 mt-1">Audit billing transactions, gross revenues, and CGST/SGST collections pools.</p>
         </div>
+        
         <button
           onClick={handleExportCSV}
-          style={{
-            padding: '10px 16px',
-            background: '#7c7a6e',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-violet-500/20 hover:shadow-lg transition-all flex items-center gap-1.5"
         >
-          <Download size={16} /> Export to CSV
+          <Download className="w-3.5 h-3.5" /> Export to CSV
         </button>
       </div>
 
-      {/* Mini Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <div style={{ background: '#fff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Total Filtered Invoices</span>
-          <h4 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '4px 0' }}>{filtered.length} Receipts</h4>
+      {/* 4 KPI Summary Ribbon */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gross Sales Revenue</span>
+          <h4 className="text-2xl font-extrabold text-emerald-600 mt-1">₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
         </div>
-        <div style={{ background: '#fff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Total Collected Revenue</span>
-          <h4 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981', margin: '4px 0' }}>₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
+
+        <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Pool (GST)</span>
+          <h4 className="text-2xl font-extrabold text-slate-800 mt-1">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
         </div>
-        <div style={{ background: '#fff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Total GST Tax Pool</span>
-          <h4 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6', margin: '4px 0' }}>₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
+
+        <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Average Bill Size</span>
+          <h4 className="text-2xl font-extrabold text-indigo-600 mt-1">₹{averageBillSize.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h4>
         </div>
+
+        <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoices Generated</span>
+          <h4 className="text-2xl font-extrabold text-slate-700 mt-1">{invoicesCount} Bills</h4>
+        </div>
+
       </div>
 
-      {/* Filter toolbar */}
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        background: '#ffffff',
-        padding: '16px',
-        borderRadius: '12px',
-        border: '1px solid #e5e7eb'
-      }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '240px' }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by invoice ID or customer..."
-            style={{ width: '100%', padding: '8px 12px 8px 36px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fafafa', outline: 'none' }}
-          />
-          <Search size={14} style={{ position: 'absolute', left: '12px', color: '#9ca3af' }} />
+      {/* Dynamic Filters Bar */}
+      <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by invoice ID or customer name..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          </div>
+
+          <select
+            value={paymentMode}
+            onChange={(e) => setPaymentMode(e.target.value)}
+            className="px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 outline-none"
+          >
+            <option value="All">All Payments</option>
+            <option value="CASH">Cash</option>
+            <option value="DIGITAL">Digital (UPI/QR)</option>
+            <option value="CARD">Card POS</option>
+            <option value="CREDIT">Khata Credit</option>
+          </select>
+
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-3 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 outline-none"
+          >
+            <option value="ALL">All Time</option>
+            <option value="TODAY">Today</option>
+            <option value="WEEK">This Week</option>
+          </select>
         </div>
 
-        <select
-          value={paymentMode}
-          onChange={(e) => setPaymentMode(e.target.value)}
-          style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#ffffff', outline: 'none', color: '#4b5563', cursor: 'pointer' }}
-        >
-          <option value="All">All Payments</option>
-          <option value="CASH">Cash</option>
-          <option value="DIGITAL">Digital (UPI/QR)</option>
-          <option value="CARD">Card POS</option>
-          <option value="CREDIT">Khata Credit</option>
-        </select>
-
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value)}
-          style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#ffffff', outline: 'none', color: '#4b5563', cursor: 'pointer' }}
-        >
-          <option value="ALL">All Time</option>
-          <option value="TODAY">Today</option>
-          <option value="LAST_7">Last 7 Days</option>
-          <option value="LAST_30">Last 30 Days</option>
-        </select>
       </div>
 
-      {/* Grid Table */}
-      <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '12px', background: '#fff' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
-          <thead>
-            <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Invoice ID</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Date / Time</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Customer</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Payment</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', textAlign: 'right' }}>Subtotal</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', textAlign: 'right' }}>GST Tax</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', textAlign: 'right' }}>Total (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(inv => (
-              <tr key={inv.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 700, color: '#111827' }}>{inv.id}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#4b5563' }}>{inv.date} <span style={{ color: '#9ca3af', fontSize: '0.725rem' }}>{inv.time}</span></td>
-                <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#4b5563' }}>{inv.customerName || 'Walk-in'}</td>
-                <td style={{ padding: '12px 16px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: '#f3f4f6', color: '#4b5563' }}>
-                    {inv.paymentMethod || 'Cash'}
-                  </span>
-                </td>
-                <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'right' }}>₹{(inv.subtotal || inv.total).toFixed(2)}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#3b82f6', textAlign: 'right', fontWeight: 600 }}>₹{(inv.totalGST || 0).toFixed(2)}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: 700, color: '#10b981', textAlign: 'right' }}>₹{Number(inv.total).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Invoice Audit Table */}
+      <div className="bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center text-slate-400">
+            <CreditCard className="w-10 h-10 mx-auto mb-2 text-slate-300 stroke-[1.2]" />
+            <h4 className="text-sm font-bold text-slate-700">No Sales Receipts Found</h4>
+            <p className="text-xs text-slate-500 mt-1">Transactions will appear once sales are completed at terminal counters.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
+                  <th className="py-4 px-5">Invoice ID</th>
+                  <th className="py-4 px-5">Date / Time</th>
+                  <th className="py-4 px-5">Customer</th>
+                  <th className="py-4 px-5">Payment Mode</th>
+                  <th className="py-4 px-5 text-right">Subtotal</th>
+                  <th className="py-4 px-5 text-right">GST Tax</th>
+                  <th className="py-4 px-5 text-right">Total (₹)</th>
+                  <th className="py-4 px-5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map(inv => {
+                  const isExpanded = expandedInvoiceId === inv.id;
+
+                  return (
+                    <React.Fragment key={inv.id}>
+                      <tr className="hover:bg-slate-50/30 transition-all font-medium">
+                        <td className="py-4 px-5">
+                          <button
+                            onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                            className="flex items-center gap-1 font-extrabold text-slate-800 text-sm hover:text-violet-600 transition-colors"
+                          >
+                            {inv.id}
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        </td>
+                        <td className="py-4 px-5 text-slate-500">
+                          {inv.date} <span className="text-[10px] text-slate-400 ml-1">{inv.time}</span>
+                        </td>
+                        <td className="py-4 px-5 text-slate-700 font-semibold">{inv.customerName || 'Walk-in'}</td>
+                        <td className="py-4 px-5">
+                          <span className="bg-violet-50 text-violet-600 border border-violet-100 rounded-full px-2.5 py-1 text-[10px] font-bold">
+                            {inv.paymentMethod || 'CASH'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5 text-right text-slate-600">₹{Number(inv.subtotal || inv.total).toFixed(2)}</td>
+                        <td className="py-4 px-5 text-right text-indigo-500 font-bold">₹{Number(inv.totalGST || 0).toFixed(2)}</td>
+                        <td className="py-4 px-5 text-right text-emerald-600 font-extrabold text-sm">₹{Number(inv.total).toFixed(2)}</td>
+                        <td className="py-4 px-5 text-right">
+                          <div className="inline-flex gap-1.5">
+                            <button
+                              onClick={() => handlePrint(inv)}
+                              className="p-2 border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-xl transition-all"
+                              title="Print Invoice"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-slate-50/40">
+                          <td colSpan={8} className="py-4 px-6 border-t border-b border-slate-100">
+                            <div className="space-y-2">
+                              <h5 className="font-extrabold text-slate-700 text-xs uppercase tracking-wider">Line Items Detail</h5>
+                              <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden max-w-2xl">
+                                <table className="w-full text-[11px] text-left">
+                                  <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
+                                      <th className="py-2.5 px-4">Item Name</th>
+                                      <th className="py-2.5 px-4 text-center">Qty</th>
+                                      <th className="py-2.5 px-4 text-right">Unit Price</th>
+                                      <th className="py-2.5 px-4 text-right">Taxable Value</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {(inv.items || []).map((item, idx) => (
+                                      <tr key={idx} className="text-slate-600 font-medium">
+                                        <td className="py-2.5 px-4 text-slate-800">{item.name}</td>
+                                        <td className="py-2.5 px-4 text-center font-bold">{item.qty}</td>
+                                        <td className="py-2.5 px-4 text-right">₹{Number(item.price).toFixed(2)}</td>
+                                        <td className="py-2.5 px-4 text-right font-bold">₹{Number(item.taxableValue || (item.price * item.qty)).toFixed(2)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>

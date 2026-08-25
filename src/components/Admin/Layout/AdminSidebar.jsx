@@ -83,21 +83,24 @@ export default function AdminSidebar({ onCloseMobile }) {
     }
   ];
 
+  const isMobile = !!onCloseMobile;
+
   return (
     <aside 
       style={{
         width: '260px',
-        height: 'calc(100vh - 48px)',
-        position: 'sticky',
-        top: '24px',
+        height: isMobile ? 'calc(100vh - 32px)' : '100vh',
+        position: isMobile ? 'static' : 'sticky',
+        top: '0px',
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 16px',
-        background: 'rgba(255, 255, 255, 0.65)',
+        background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(20px)',
-        borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.5)',
-        boxShadow: '0 10px 30px -15px rgba(0, 0, 0, 0.05)',
+        borderRadius: isMobile ? '24px' : '0px',
+        border: isMobile ? '1px solid rgba(255, 255, 255, 0.5)' : 'none',
+        borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
+        boxShadow: isMobile ? '0 10px 30px -15px rgba(0, 0, 0, 0.05)' : 'none',
         zIndex: 50,
       }}
     >

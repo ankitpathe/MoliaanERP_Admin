@@ -11,8 +11,8 @@ export default function AdminLayout({ sidebar, header, children }) {
       backgroundColor: 'var(--bg-main)',
       background: 'var(--bg-main-grad)',
       position: 'relative',
-      padding: '24px',
-      gap: '24px',
+      padding: '0px',
+      gap: '0px',
       overflow: 'hidden',
       boxSizing: 'border-box'
     }}>
@@ -68,10 +68,10 @@ export default function AdminLayout({ sidebar, header, children }) {
         minWidth: 0,
         height: '100%',
         overflow: 'hidden',
-        background: 'rgba(255, 255, 255, 0.85)',
-        borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.6)',
-        boxShadow: '0 20px 40px -15px rgba(27, 32, 46, 0.05)'
+        background: '#f8fafc',
+        borderRadius: '0px',
+        border: 'none',
+        boxShadow: 'none'
       }}>
         {React.cloneElement(header, { 
           onMenuToggle: () => setMobileSidebarOpen(!mobileSidebarOpen) 

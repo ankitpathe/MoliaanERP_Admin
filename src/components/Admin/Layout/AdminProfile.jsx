@@ -1,12 +1,24 @@
 import React from 'react';
-import { ChevronDown, User, Settings, LogOut, Circle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, User, Settings, LogOut } from 'lucide-react';
+import { useToast } from '../../../hooks/useToast';
 
 export default function AdminProfile({ isOpen, setIsOpen }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const storedSession = JSON.parse(localStorage.getItem('erp_user_session') || '{}');
   const adminInfo = {
-    name: 'Diet Lam',
-    role: 'Admin',
-    status: 'Online',
+    name: storedSession.name || 'Administrator',
+    role: storedSession.role || 'ADMIN',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=128&h=128&auto=format&fit=crop',
+  };
+
+  const handleLogout = () => {
+    setIsOpen(false);
+    localStorage.removeItem('erp_user_session');
+    toast.showInfo('Logged Out', 'Successfully logged out of the Administrator session.');
+    navigate('/');
   };
 
   return (
@@ -70,7 +82,10 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
             </div>
 
             <button 
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/admin/profile');
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -82,7 +97,8 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
                 color: '#374151',
                 textAlign: 'left',
                 cursor: 'pointer',
-                fontSize: '0.85rem'
+                fontSize: '0.85rem',
+                width: '100%'
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -92,7 +108,10 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
             </button>
             
             <button 
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/admin/master-data');
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -104,7 +123,8 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
                 color: '#374151',
                 textAlign: 'left',
                 cursor: 'pointer',
-                fontSize: '0.85rem'
+                fontSize: '0.85rem',
+                width: '100%'
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -114,7 +134,7 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
             </button>
 
             <button 
-              onClick={() => setIsOpen(false)}
+              onClick={handleLogout}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -128,7 +148,8 @@ export default function AdminProfile({ isOpen, setIsOpen }) {
                 cursor: 'pointer',
                 fontSize: '0.85rem',
                 borderTop: '1px solid #f3f4f6',
-                marginTop: '4px'
+                marginTop: '4px',
+                width: '100%'
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
