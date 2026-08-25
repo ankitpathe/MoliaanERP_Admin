@@ -1,215 +1,541 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
-import { Monitor, Cpu, MapPin, ToggleLeft, ToggleRight, Sparkles } from 'lucide-react';
+import { Monitor, UserCheck, Cpu, Key, CheckSquare, Square } from 'lucide-react';
 
-const BRANCH_OPTIONS = [
-  'Head Office',
-  'Annex Branch',
-  'Main Store',
-  'Warehouse',
-  'Delhi Central',
-  'Mumbai Bandra'
+const DUMMY_MERCHANTS = [
+  { id: 'M-101', name: 'Gourmet Kitchen' },
+  { id: 'M-102', name: 'QuickMart Plaza' },
+  { id: 'M-103', name: 'Apex Pharmacy' },
+  { id: 'M-104', name: 'Organic Foods Co.' }
 ];
 
 export default function AddCounterForm() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [code, setCode] = useState('');
+  // Form State
   const [name, setName] = useState('');
-  const [deviceId, setDeviceId] = useState('');
-  const [branch, setBranch] = useState(BRANCH_OPTIONS[0]);
-  const [status, setStatus] = useState('Online'); // 'Online' / 'Disabled'
+  const [counterId, setCounterId] = useState('');
+  const [type, setType] = useState('Retail');
+  const [merchantId, setMerchantId] = useState('');
+  const [branch, setBranch] = useState('');
+  const [deviceModel, setDeviceModel] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [syncEndpoint, setSyncEndpoint] = useState('');
+  const [assignedStaff, setAssignedStaff] = useState([]);
+  const [pin, setPin] = useState('');
+  const [isActive, setIsActive] = useState(true);
 
-  // Live Counter Code Auto Generator helper
-  const handleAutoGenerateCode = () => {
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    setCode(`POS-${randomNum}`);
-    toast.showInfo('Generated', `Assigned code: POS-${randomNum}`);
-  };
+  // Lists
+  const [merchants, setMerchants] = useState([]);
+  const [usersList, setUsersList] = useState([]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // Errors State
+  const [errors, setErrors] = useState({});
 
-    if (!code || !name || !deviceId || !branch) {
-      toast.showError('Required', 'Please fill in all required fields.');
-      return;
+  useEffect(() => {
+    // Determine Counter ID
+    const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
+    const nextNum = existing.length + 1;
+    const formattedId = `CTR-00${nextNum}`;
+    setCounterId(formattedId);
+
+    // Load Merchants or seed
+    const storedMerchants = JSON.parse(localStorage.getItem('merchants') || '[]');
+    if (storedMerchants.length === 0) {
+      localStorage.setItem('merchants', JSON.stringify(DUMMY_MERCHANTS));
+      setMerchants(DUMMY_MERCHANTS);
+    } else {
+      setMerchants(storedMerchants);
     }
 
-    const uppercaseCode = code.trim().toUpperCase();
-    const uppercaseDevice = deviceId.trim().toUpperCase();
+    // Load Users for staff assignment
+    const storedUsers = JSON.parse(localStorage.getItem('erp_users') || '[]');
+    if (storedUsers.length === 0) {
+      const dummyStaff = [
+        { username: 'john_cashier', name: 'John Doe' },
+        { username: 'sarah_billing', name: 'Sarah Connor' },
+        { username: 'mike_kiosk', name: 'Mike Miller' }
+      ];
+      setUsersList(dummyStaff);
+    } else {
+      setUsersList(storedUsers.map(u => ({ username: u.username, name: u.name || u.username })));
+    }
+  }, []);
 
-    // Device Hash Validation: Should look like MAC/DEV hash format
-    if (uppercaseDevice.length < 5) {
-      toast.showError('Validation Error', 'Device ID must be at least 5 characters.');
+  const handleToggleStaff = (username) => {
+    if (assignedStaff.includes(username)) {
+      setAssignedStaff(prev => prev.filter(u => u !== username));
+    } else {
+      setAssignedStaff(prev => [...prev, username]);
+    }
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    const newErrors = {};
+
+    if (!name.trim()) {
+      newErrors.name = 'Counter Name is required';
+    }
+    if (!merchantId) {
+      newErrors.merchantId = 'Please select a Merchant';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.showError('Validation Error', 'Please complete the required fields.');
       return;
     }
 
     try {
       const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
       
-      // Validation: Unique code check
-      const codeExists = existing.some(c => c.code.toUpperCase() === uppercaseCode);
-      if (codeExists) {
-        toast.showError('Validation Error', `Counter code "${uppercaseCode}" is already registered.`);
-        return;
-      }
-
       const newCounter = {
-        id: `CNT-${Date.now()}`,
-        code: uppercaseCode,
+        id: counterId,
         name: name.trim(),
-        deviceId: uppercaseDevice,
-        branch,
-        status,
-        lastHeartbeat: new Date().toISOString(),
+        code: counterId, // Mapped to code for list tables compatibility
+        type,
+        merchantId,
+        branch: branch.trim() || 'General',
+        deviceModel: deviceModel.trim(),
+        serialNumber: serialNumber.trim(),
+        syncEndpoint: syncEndpoint.trim(),
+        assignedStaff,
+        pin: pin.trim(),
+        status: isActive ? 'Online' : 'Offline', // Online maps to active in reports
+        syncStatus: 'not_synced',
         totalBillsToday: 0,
-        totalSalesToday: 0
+        totalSalesToday: 0,
+        createdAt: new Date().toISOString(),
+        lastHeartbeat: new Date().toISOString()
       };
 
-      localStorage.setItem('erp_admin_counters', JSON.stringify([...existing, newCounter]));
+      const updated = [...existing, newCounter];
+      localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+
+      // Append to legacy 'counters' key just in case
+      localStorage.setItem('counters', JSON.stringify(updated));
 
       logActivity({
         activityType: 'COUNTER_REGISTERED',
         module: 'Counters',
-        actionDescription: `Registered new counter "${name}" [Code: ${uppercaseCode}, Device ID: ${uppercaseDevice}]`
+        actionDescription: `Created new POS counter "${name}" with ID "${counterId}"`
       });
 
-      toast.showSuccess('Registered', `Counter "${uppercaseCode}" registered successfully.`);
-      navigate('/admin/counters/reports');
-    } catch (err) {
-      console.error(err);
-      toast.showError('Error', 'Unable to register counter terminal.');
+      toast.showSuccess('Success', 'Counter added successfully.');
+      
+      setTimeout(() => {
+        navigate('/admin/counters/reports');
+      }, 500);
+
+    } catch (e) {
+      toast.showError('Error', 'Unable to save counter terminal.');
     }
   };
 
   return (
-    <div className="bg-[#f8fafc] min-h-[80vh] py-4">
-      <div className="max-w-4xl mx-auto bg-white border border-slate-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.05)] rounded-2xl p-6 md:p-8">
-        
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-slate-100">
-          <div className="p-3 bg-violet-50 rounded-xl text-violet-600">
-            <Monitor className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-extrabold text-slate-800">Register New POS Terminal</h2>
-            <p className="text-xs text-slate-500 mt-1">Configure and authorize a hardware billing counter for Moliaan ERP sync.</p>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', boxSizing: 'border-box' }}>
+      
+      {/* Breadcrumbs Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Admin / Counters / New
+          </span>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+            Add Counter
+          </h2>
+          <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+            Register a new POS counter and assign it to a merchant.
+          </span>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <button 
+          onClick={() => navigate('/admin/counters/reports')}
+          style={{
+            padding: '8px 16px',
+            background: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            color: '#4b5563',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
+          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+        >
+          Cancel
+        </button>
+      </div>
+
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        
+        {/* Section 1: Counter Details */}
+        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+            <Monitor size={18} style={{ color: '#7c3aed' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Section 1 - Counter Details
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             
-            {/* Counter Code */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex justify-between">
-                <span>Counter Code *</span>
-                <button 
-                  type="button" 
-                  onClick={handleAutoGenerateCode}
-                  className="text-violet-600 hover:text-violet-700 lowercase flex items-center gap-1 font-semibold normal-case"
-                >
-                  <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Auto Generate
-                </button>
-              </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Name *</span>
               <input 
                 type="text" 
-                value={code} 
-                onChange={(e) => setCode(e.target.value)} 
-                placeholder="e.g. POS-03" 
-                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all" 
-                required 
+                value={name}
+                onChange={e => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors(prev => ({ ...prev, name: null }));
+                }}
+                placeholder="e.g. Ground Floor Terminal"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.name ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+              {errors.name && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.name}</span>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter ID</span>
+              <input 
+                type="text" 
+                value={counterId}
+                disabled
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  fontSize: '0.85rem',
+                  background: '#f3f4f6',
+                  color: '#9ca3af',
+                  cursor: 'not-allowed'
+                }}
               />
             </div>
 
-            {/* Counter Name */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Counter Name / Title *</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="e.g. Quick Checkout Front" 
-                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all" 
-                required 
-              />
-            </div>
-
-            {/* Device ID / MAC Hash */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                <Cpu className="w-3.5 h-3.5 text-slate-400" /> Device ID / MAC Hash *
-              </label>
-              <input 
-                type="text" 
-                value={deviceId} 
-                onChange={(e) => setDeviceId(e.target.value)} 
-                placeholder="e.g. MAC-77A1-B2C3" 
-                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all" 
-                required 
-              />
-            </div>
-
-            {/* Assigned Branch / Outlet */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> Assigned Branch / Outlet *
-              </label>
-              <select 
-                value={branch} 
-                onChange={(e) => setBranch(e.target.value)} 
-                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
-                required
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Type</span>
+              <select
+                value={type}
+                onChange={e => setType(e.target.value)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
               >
-                {BRANCH_OPTIONS.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
+                <option value="Retail">Retail</option>
+                <option value="Billing">Billing</option>
+                <option value="Kiosk">Kiosk</option>
+                <option value="Mobile POS">Mobile POS</option>
               </select>
             </div>
 
           </div>
+        </div>
 
-          {/* Initial Status Toggle */}
-          <div className="flex items-center justify-between p-4 bg-slate-50/60 rounded-xl border border-slate-100">
-            <div>
-              <span className="block text-sm font-bold text-slate-800">Initial Active Status</span>
-              <span className="block text-xs text-slate-500 mt-0.5">Determine if the counter starts as active and online.</span>
+        {/* Section 2: Assign to Merchant */}
+        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+            <UserCheck size={18} style={{ color: '#7c3aed' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Section 2 - Assign to Merchant
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Select Merchant *</span>
+              <select
+                value={merchantId}
+                onChange={e => {
+                  setMerchantId(e.target.value);
+                  if (errors.merchantId) setErrors(prev => ({ ...prev, merchantId: null }));
+                }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.merchantId ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              >
+                <option value="">-- Choose Merchant --</option>
+                {merchants.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              {errors.merchantId && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.merchantId}</span>}
             </div>
-            <button
-              type="button"
-              onClick={() => setStatus(prev => prev === 'Online' ? 'Disabled' : 'Online')}
-              className="text-violet-600 focus:outline-none"
-            >
-              {status === 'Online' ? (
-                <ToggleRight className="w-12 h-12 stroke-[1.2]" />
-              ) : (
-                <ToggleLeft className="w-12 h-12 stroke-[1.2] text-slate-400" />
-              )}
-            </button>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Branch / Location</span>
+              <input 
+                type="text" 
+                value={branch}
+                onChange={e => setBranch(e.target.value)}
+                placeholder="e.g. Main Outlet, Ground Floor"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section 3: Hardware Info */}
+        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+            <Cpu size={18} style={{ color: '#7c3aed' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Section 3 - Hardware Info (Optional)
+            </span>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/counters/reports')}
-              className="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl text-sm font-bold shadow-md shadow-violet-500/20 hover:shadow-lg transition-all"
-            >
-              Register Counter
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Device Model</span>
+              <input 
+                type="text" 
+                value={deviceModel}
+                onChange={e => setDeviceModel(e.target.value)}
+                placeholder="e.g. HP Engage One"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Serial Number</span>
+              <input 
+                type="text" 
+                value={serialNumber}
+                onChange={e => setSerialNumber(e.target.value)}
+                placeholder="e.g. SN-8821094A"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Sync Endpoint / IP Address</span>
+              <input 
+                type="text" 
+                value={syncEndpoint}
+                onChange={e => setSyncEndpoint(e.target.value)}
+                placeholder="e.g. 192.168.1.150"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section 4: Access & Assignment */}
+        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+            <Key size={18} style={{ color: '#7c3aed' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Section 4 - Access & Assignment
+            </span>
           </div>
 
-        </form>
-      </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Assign Staff (Select multiple)</span>
+              <div style={{
+                maxHeight: '120px',
+                overflowY: 'auto',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                padding: '8px',
+                background: '#ffffff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                {usersList.map(u => {
+                  const isChecked = assignedStaff.includes(u.username);
+                  return (
+                    <div 
+                      key={u.username}
+                      onClick={() => handleToggleStaff(u.username)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        color: '#374151',
+                        padding: '4px 6px',
+                        borderRadius: '4px'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {isChecked ? <CheckSquare size={16} className="text-violet-600" /> : <Square size={16} className="text-slate-400" />}
+                      <span>{u.name} ({u.username})</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Access PIN (4-digit numeric)</span>
+              <input 
+                type="text" 
+                maxLength={4}
+                value={pin}
+                onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="e.g. 1234"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section 5: Status */}
+        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Status:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => setIsActive(!isActive)}>
+                <div style={{
+                  width: '34px',
+                  height: '20px',
+                  borderRadius: '99px',
+                  background: isActive ? '#10b981' : '#d1d5db',
+                  position: 'relative',
+                  transition: 'background-color 0.2s ease'
+                }}>
+                  <div style={{
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    position: 'absolute',
+                    top: '3px',
+                    left: isActive ? '17px' : '3px',
+                    transition: 'left 0.2s ease'
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isActive ? '#065f46' : '#991b1b' }}>
+                  {isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '4px 10px',
+              borderRadius: '99px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              background: '#f3f4f6',
+              color: '#4b5563'
+            }}>
+              Sync Status: Not Synced Yet
+            </span>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div style={{ display: 'flex', justifyContext: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
+          <button 
+            type="submit"
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(to right, #7c3aed, #4f46e5)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Save Counter
+          </button>
+          
+          <button 
+            type="button"
+            onClick={() => navigate('/admin/counters/reports')}
+            style={{
+              padding: '10px 20px',
+              background: '#ffffff',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              color: '#4b5563',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+          >
+            Cancel
+          </button>
+        </div>
+
+      </form>
+
     </div>
   );
 }

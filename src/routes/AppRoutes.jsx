@@ -33,6 +33,9 @@ import SystemHealth from '../pages/Admin/Audit/SystemHealth';
 import Backup from '../pages/Admin/Audit/Backup';
 import MasterData from '../pages/Admin/Audit/MasterData';
 
+// Promotions / Advertisements
+import Advertisements from '../pages/Admin/Advertisements/Index';
+
 // Profile Account
 import Profile from '../pages/Admin/Profile/Profile';
 
@@ -76,6 +79,9 @@ export default function AppRoutes() {
         
         {/* Profile Account */}
         <Route path="profile" element={<Profile />} />
+
+        {/* Promotions / Advertisements */}
+        <Route path="advertisements" element={<Advertisements />} />
       </Route>
 
       {/* Fallback Redirect */}

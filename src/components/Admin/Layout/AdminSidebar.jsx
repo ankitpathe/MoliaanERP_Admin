@@ -18,7 +18,8 @@ import {
   HardDriveDownload,
   Database,
   User,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 
 export default function AdminSidebar({ onCloseMobile }) {
@@ -63,7 +64,8 @@ export default function AdminSidebar({ onCloseMobile }) {
       title: 'SYSTEM REPORTS',
       items: [
         { id: 'invoices-reports', label: 'Invoices Reports', path: '/admin/reports/invoices', icon: Receipt },
-        { id: 'stocks-reports', label: 'Stocks Reports', path: '/admin/reports/stocks', icon: Boxes }
+        { id: 'stocks-reports', label: 'Stocks Reports', path: '/admin/reports/stocks', icon: Boxes },
+        { id: 'advertisements', label: 'Advertisements', path: '/admin/advertisements', icon: Sparkles }
       ]
     },
     {
@@ -140,15 +142,16 @@ export default function AdminSidebar({ onCloseMobile }) {
       {/* Navigation List */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingRight: '4px' }}>
         {menuSections.map((section, idx) => (
-          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: idx === 0 ? '0px' : '24px' }}>
             {section.title && (
               <span style={{ 
-                fontSize: '0.75rem', 
+                fontSize: '0.725rem', 
                 fontWeight: 700, 
                 color: '#9ca3af', 
                 letterSpacing: '1px', 
                 paddingLeft: '12px',
-                marginBottom: '4px' 
+                marginBottom: '4px',
+                textTransform: 'uppercase'
               }}>
                 {section.title}
               </span>
@@ -166,16 +169,18 @@ export default function AdminSidebar({ onCloseMobile }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    gap: '12px',
                     width: '100%',
                     padding: '10px 12px',
-                    borderRadius: '12px',
+                    paddingLeft: isSelected ? '8px' : '12px',
+                    borderRadius: '8px',
                     border: 'none',
+                    borderLeft: isSelected ? '4px solid #7c3aed' : '4px solid transparent',
                     cursor: 'pointer',
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: isSelected ? '#ffffff' : '#4b5563',
-                    background: isSelected ? '#7c7a6e' : 'transparent',
+                    color: isSelected ? '#7c3aed' : '#4b5563',
+                    background: isSelected ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
                     transition: 'all 0.2s ease',
                     textAlign: 'left',
                     textDecoration: 'none'
@@ -193,7 +198,7 @@ export default function AdminSidebar({ onCloseMobile }) {
                     }
                   }}
                 >
-                  <Icon size={18} style={{ color: isSelected ? '#ffffff' : '#6b7280' }} />
+                  <Icon size={18} style={{ color: isSelected ? '#7c3aed' : '#6b7280' }} />
                   <span>{item.label}</span>
                 </Link>
               );

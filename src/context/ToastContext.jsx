@@ -40,7 +40,17 @@ export const ToastProvider = ({ children }) => {
 
 const ToastContainer = ({ toasts, dismiss }) => {
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-4 sm:bottom-4 z-[9999] flex flex-col gap-3 w-[calc(100%-2rem)] sm:w-full max-w-sm pointer-events-none">
+    <div style={{
+      position: 'fixed',
+      bottom: '24px',
+      right: '24px',
+      zIndex: 9999,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      width: '320px',
+      pointerEvents: 'none'
+    }}>
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} dismiss={dismiss} />
       ))}
@@ -83,63 +93,123 @@ const ToastCard = ({ toast, dismiss }) => {
 
   const typeConfig = {
     success: {
-      border: 'border-emerald-500/30 dark:border-emerald-500/20',
-      bgBar: '#10b981',
-      badge: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400',
-      icon: <CheckCircle className="w-5 h-5" />,
+      color: '#10b981',
+      bgIcon: 'rgba(16, 185, 129, 0.15)',
+      icon: <CheckCircle size={18} />
     },
     error: {
-      border: 'border-rose-500/30 dark:border-rose-500/20',
-      bgBar: '#f43f5e',
-      badge: 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400',
-      icon: <AlertCircle className="w-5 h-5" />,
+      color: '#f43f5e',
+      bgIcon: 'rgba(244, 63, 94, 0.15)',
+      icon: <AlertCircle size={18} />
     },
     warning: {
-      border: 'border-amber-500/30 dark:border-amber-500/20',
-      bgBar: '#f59e0b',
-      badge: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400',
-      icon: <AlertTriangle className="w-5 h-5" />,
+      color: '#f59e0b',
+      bgIcon: 'rgba(245, 158, 11, 0.15)',
+      icon: <AlertTriangle size={18} />
     },
     info: {
-      border: 'border-sky-500/30 dark:border-sky-500/20',
-      bgBar: '#0ea5e9',
-      badge: 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400',
-      icon: <Info className="w-5 h-5" />,
-    },
+      color: '#38bdf8',
+      bgIcon: 'rgba(56, 189, 248, 0.15)',
+      icon: <Info size={18} />
+    }
   };
 
-  const config = typeConfig[type];
+  const config = typeConfig[type] || typeConfig.info;
 
   return (
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`pointer-events-auto relative w-full rounded-[16px] border ${config.border} bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl p-4 flex gap-3 overflow-hidden select-none`}
       style={{
-        animation: 'toast-slide-up 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '14px',
+        background: '#1e293b',
+        color: '#ffffff',
+        padding: '16px 20px 20px 20px',
+        borderRadius: '12px',
+        border: '1px solid #334155',
+        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3)',
+        position: 'relative',
+        width: '100%',
+        minHeight: '82px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        pointerEvents: 'auto',
+        animation: 'toast-slide-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards'
       }}
     >
-      <div className={`p-2 rounded-xl self-start shrink-0 ${config.badge}`}>
+      {/* Type Icon Container */}
+      <div style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '8px',
+        background: config.bgIcon,
+        color: config.color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }}>
         {config.icon}
       </div>
 
-      <div className="flex-1 min-w-0 pr-4">
-        <h4 className="font-extrabold text-slate-800 dark:text-slate-100 text-xs tracking-wide uppercase">{title}</h4>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{message}</p>
+      {/* Main Text Content */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        flex: 1,
+        paddingRight: '16px'
+      }}>
+        <h4 style={{
+          fontSize: '0.85rem',
+          fontWeight: 700,
+          color: '#ffffff',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          margin: 0
+        }}>
+          {title}
+        </h4>
+        <p style={{
+          fontSize: '0.75rem',
+          color: '#94a3b8',
+          lineHeight: '1.4',
+          margin: 0
+        }}>
+          {message}
+        </p>
       </div>
 
+      {/* Close button */}
       <button
         onClick={() => dismiss(id)}
-        className="absolute top-3 right-3 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 transition-colors cursor-pointer"
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          background: 'transparent',
+          border: 'none',
+          color: '#94a3b8',
+          cursor: 'pointer',
+          padding: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '6px'
+        }}
+        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
+        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
         type="button"
       >
-        <X className="w-3.5 h-3.5" />
+        <X size={14} />
       </button>
 
-      {/* CSS Keyframe Animations injection */}
+      {/* CSS Keyframe Animations */}
       <style>{`
-        @keyframes toast-slide-up {
-          from { transform: translateY(50px) scale(0.95); opacity: 0; }
+        @keyframes toast-slide-in {
+          from { transform: translateY(20px) scale(0.95); opacity: 0; }
           to { transform: translateY(0) scale(1); opacity: 1; }
         }
         @keyframes toast-progress {
@@ -148,12 +218,19 @@ const ToastCard = ({ toast, dismiss }) => {
         }
       `}</style>
 
-      {/* Progress Bar */}
-      <div className="absolute bottom-0 left-0 w-full h-[3.5px] bg-slate-100 dark:bg-slate-800">
+      {/* Bottom Progress Bar */}
+      <div style={{
+        position: 'absolute',
+        bottom: '0px',
+        left: '0px',
+        right: '0px',
+        height: '4px',
+        background: 'rgba(255, 255, 255, 0.1)'
+      }}>
         <div
-          className="h-full"
           style={{
-            background: config.bgBar,
+            height: '100%',
+            background: config.color,
             width: isPaused ? `${(remaining / duration) * 100}%` : '0%',
             transition: isPaused ? 'none' : `width ${remaining}ms linear`,
             animation: isPaused ? 'none' : `toast-progress ${remaining}ms linear forwards`
