@@ -1,46 +1,27 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+const ToastContext = createContext(undefined);
 
-export interface Toast {
-  id: string;
-  type: ToastType;
-  title: string;
-  message: string;
-  duration?: number;
-}
+export const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
 
-interface ToastContextType {
-  toasts: Toast[];
-  showSuccess: (title: string, message: string, duration?: number) => void;
-  showError: (title: string, message: string, duration?: number) => void;
-  showWarning: (title: string, message: string, duration?: number) => void;
-  showInfo: (title: string, message: string, duration?: number) => void;
-  dismiss: (id: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
-
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = (type: ToastType, title: string, message: string, duration = 4000) => {
+  const addToast = (type, title, message, duration = 4000) => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, type, title, message, duration }]);
   };
 
-  const dismiss = (id: string) => {
+  const dismiss = (id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const showSuccess = (title: string, message: string, duration = 4000) => addToast('success', title, message, duration);
-  const showError = (title: string, message: string, duration = 5000) => addToast('error', title, message, duration);
-  const showWarning = (title: string, message: string, duration = 4000) => addToast('warning', title, message, duration);
-  const showInfo = (title: string, message: string, duration = 4000) => addToast('info', title, message, duration);
+  const showSuccess = (title, message, duration = 4000) => addToast('success', title, message, duration);
+  const showError = (title, message, duration = 5000) => addToast('error', title, message, duration);
+  const showWarning = (title, message, duration = 4000) => addToast('warning', title, message, duration);
+  const showInfo = (title, message, duration = 4000) => addToast('info', title, message, duration);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e) => {
       if (e.key === 'Escape' && toasts.length > 0) {
         dismiss(toasts[toasts.length - 1].id);
       }
@@ -57,7 +38,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-const ToastContainer: React.FC<{ toasts: Toast[]; dismiss: (id: string) => void }> = ({ toasts, dismiss }) => {
+const ToastContainer = ({ toasts, dismiss }) => {
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-4 sm:bottom-4 z-[9999] flex flex-col gap-3 w-[calc(100%-2rem)] sm:w-full max-w-sm pointer-events-none">
       {toasts.map((toast) => (
@@ -67,12 +48,12 @@ const ToastContainer: React.FC<{ toasts: Toast[]; dismiss: (id: string) => void 
   );
 };
 
-const ToastCard: React.FC<{ toast: Toast; dismiss: (id: string) => void }> = ({ toast, dismiss }) => {
+const ToastCard = ({ toast, dismiss }) => {
   const { id, type, title, message, duration = 4000 } = toast;
   const [remaining, setRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const startTime = useRef(Date.now());
-  const timerId = useRef<number | null>(null);
+  const timerId = useRef(null);
 
   useEffect(() => {
     if (isPaused) {

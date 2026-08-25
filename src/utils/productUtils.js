@@ -1,4 +1,4 @@
-export const getDefaultProductImage = (barcode?: string, name?: string): string => {
+export const getDefaultProductImage = (barcode, name) => {
   const normName = (name || '').toLowerCase();
   const bc = barcode || '';
   

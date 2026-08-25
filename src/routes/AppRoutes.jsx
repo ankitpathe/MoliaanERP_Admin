@@ -2,39 +2,39 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Admin Shell Wrapper
-import AdminShell from '../pages/admin/AdminShell';
+import AdminShell from '../pages/Admin/AdminShell';
 
 // Platform Dashboard
-import Dashboard from '../pages/admin/dashboard/Dashboard';
+import Dashboard from '../pages/Admin/Dashboard/Index';
 
 // Merchants
-import Users from '../pages/admin/users/Users';
+import Users from '../pages/Admin/Users/Index';
 
 // Terminal Counters
-import AddCounter from '../pages/admin/counters/new';
-import CounterReports from '../pages/admin/counters/reports';
+import AddCounter from '../pages/Admin/Counters/New';
+import CounterReports from '../pages/Admin/Counters/Reports';
 
 // SaaS Plans & Subscriptions
-import AllPlans from '../pages/admin/plans/index';
-import AddPlan from '../pages/admin/plans/new';
-import SubRequests from '../pages/admin/subscriptions/requests';
-import SubReports from '../pages/admin/subscriptions/reports';
+import AllPlans from '../pages/Admin/Plans/Index';
+import AddPlan from '../pages/Admin/Plans/New';
+import SubRequests from '../pages/Admin/Plans/Requests';
+import SubReports from '../pages/Admin/Plans/Reports';
 
 // Data Sync Monitor
-import SyncReport from '../pages/admin/data-sync/report';
+import SyncReport from '../pages/Admin/DataSync/Report';
 
 // System Reports
-import InvoicesReportPage from '../pages/admin/reports/invoices';
-import StocksReportPage from '../pages/admin/reports/stocks';
+import InvoicesReportPage from '../pages/Admin/Reports/Invoices';
+import StocksReportPage from '../pages/Admin/Reports/Stocks';
 
 // Developer Audits
-import ActivityLogs from '../pages/admin/activity-logs/index';
-import SystemHealth from '../pages/admin/system-health/SystemHealth';
-import Backup from '../pages/admin/backup/Backup';
-import MasterData from '../pages/admin/master-data/index';
+import ActivityLogs from '../pages/Admin/Audit/ActivityLogs';
+import SystemHealth from '../pages/Admin/Audit/SystemHealth';
+import Backup from '../pages/Admin/Audit/Backup';
+import MasterData from '../pages/Admin/Audit/MasterData';
 
 // Profile Account
-import Profile from '../pages/admin/profile/Profile';
+import Profile from '../pages/Admin/Profile/Profile';
 
 export default function AppRoutes() {
   return (

@@ -1,28 +1,9 @@
-export interface ActivityLog {
-  id: string;
-  timestamp: string; // ISO string
-  date: string;
-  time: string;
-  userName: string;
-  userRole: string;
-  employeeId?: string;
-  activityType: 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW' | 'PRINT' | 'DOWNLOAD' | 'LOGIN' | 'LOGOUT' | 'PAYMENT' | 'EXPORT';
-  module: string; // e.g. 'POS', 'Inventory', 'Customers', 'Settings', 'Sales History'
-  pageUrl: string;
-  actionDescription: string;
-  oldValue?: any;
-  newValue?: any;
-  ipAddress?: string;
-  deviceBrowser: string;
-  status: 'Success' | 'Warning' | 'Failed';
-}
-
-export const logActivity = (logData: Omit<ActivityLog, 'id' | 'timestamp' | 'date' | 'time' | 'userName' | 'userRole' | 'deviceBrowser'>) => {
+export const logActivity = (logData) => {
   try {
     const activeRole = localStorage.getItem('erp_active_role') || 'Administrator';
     const currentUser = { name: 'Administrator', role: activeRole };
 
-    const newLog: ActivityLog = {
+    const newLog = {
       id: 'LOG-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
       timestamp: new Date().toISOString(),
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),

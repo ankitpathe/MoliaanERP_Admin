@@ -1,14 +1,4 @@
-import type { ProductItem } from '../components/inventory/types';
-
-export interface AssistantResponse {
-  message: string;
-  navigatePath?: string;
-  type: 'text' | 'success' | 'warning' | 'error' | 'info';
-}
-
-export const handleAssistantCommand = (
-  rawMessage: string
-): AssistantResponse => {
+export const handleAssistantCommand = (rawMessage) => {
   const query = rawMessage.trim().toLowerCase();
   
   // 1. Navigation intents
@@ -55,7 +45,7 @@ export const handleAssistantCommand = (
       if (!rawProducts) {
         return { message: "No product database found.", type: 'warning' };
       }
-      const products: ProductItem[] = JSON.parse(rawProducts);
+      const products = JSON.parse(rawProducts);
       const lowStockItems = products.filter(p => Number(p.stock) <= Number(p.minStock));
       
       if (lowStockItems.length === 0) {
@@ -81,18 +71,18 @@ export const handleAssistantCommand = (
       }
       const sales = JSON.parse(rawSales);
       const todayStr = new Date().toISOString().split('T')[0];
-      const todaySales = sales.filter((s: any) => s.date === todayStr);
+      const todaySales = sales.filter((s) => s.date === todayStr);
 
       if (todaySales.length === 0) {
         return { message: "No sales transactions recorded for today yet.", type: 'info' };
       }
 
-      const totalSalesAmount = todaySales.reduce((sum: number, s: any) => sum + (Number(s.total) || 0), 0);
+      const totalSalesAmount = todaySales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
       const invoiceCount = todaySales.length;
 
       // Group by payment method
-      const paymentSummary: Record<string, number> = {};
-      todaySales.forEach((s: any) => {
+      const paymentSummary = {};
+      todaySales.forEach((s) => {
         const method = (s.paymentMethod || 'cash').toLowerCase();
         paymentSummary[method] = (paymentSummary[method] || 0) + (Number(s.total) || 0);
       });
@@ -132,7 +122,7 @@ export const handleAssistantCommand = (
       if (!rawProducts) {
         return { message: "No product database found.", type: 'warning' };
       }
-      const products: ProductItem[] = JSON.parse(rawProducts);
+      const products = JSON.parse(rawProducts);
       const matches = products.filter(p =>
         p.name.toLowerCase().includes(term) ||
         (p.barcode && p.barcode.includes(term)) ||

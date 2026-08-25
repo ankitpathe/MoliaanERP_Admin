@@ -1,21 +1,11 @@
 // Forward compatibility mapping to centralized billingCalculator
 import { calculateItemBilling } from './billingCalculator';
 
-export interface ProductPricing {
-  mrp: number;
-  sellingPrice: number;
-  quantity: number;
-  unitDiscount: number;
-  totalDiscount: number;
-  totalAmount: number;
-  totalMRP: number;
-}
-
 export const calculatePricing = (
-  rawMRP: any,
-  rawSellingPrice: any,
-  rawQty: any = 1
-): ProductPricing => {
+  rawMRP,
+  rawSellingPrice,
+  rawQty = 1
+) => {
   const billing = calculateItemBilling({
     costPrice: 0,
     mrp: Number(rawMRP) || 0,

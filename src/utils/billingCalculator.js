@@ -1,67 +1,4 @@
-export interface BillingInput {
-  costPrice: number;
-  mrp: number;
-  sellingPrice: number;
-  gstRate: number;
-  gstMode: 'Inclusive' | 'Exclusive';
-  quantity: number;
-  taxStructure?: 'intra' | 'inter' | 'exempt' | 'nil' | 'non-gst' | 'zero';
-  itemDiscount?: number; // Line item level manual discount (per unit)
-  cessPercent?: number;  // Cess percentage
-}
-
-export interface BillingLineOutput {
-  costPrice: number;
-  mrp: number;
-  sellingPrice: number;
-  quantity: number;
-  
-  // Base details before line-level manual discount and taxes
-  unitProductDiscount: number; // MRP - SellingPrice (never negative)
-  totalProductDiscount: number; // unitProductDiscount * quantity
-  
-  // Selling price after unit item discount (per unit)
-  discountedSellingPrice: number; // max(0, sellingPrice - itemDiscount)
-  totalDiscountedSellingPrice: number; // discountedSellingPrice * quantity
-  itemDiscountAmount: number; // itemDiscount * quantity
-  
-  // Tax calculations
-  basePrice: number; // Base price per unit (ex-tax) after product & item discounts
-  taxableValue: number; // Total ex-tax taxable value for line = basePrice * quantity
-  gstRate: number;
-  gstAmount: number; // Total GST for line
-  cgst: number;
-  sgst: number;
-  igst: number;
-  cessPercent: number;
-  cessAmount: number;
-  
-  // Grand total & margins
-  grandTotal: number; // Total customer pays for this line
-  profit: number; // Profit = Total ex-tax (taxableValue) - Total Cost Price
-  margin: number; // Profit / taxableValue * 100
-}
-
-export interface CartBillingOutput {
-  items: BillingLineOutput[];
-  subtotal: number; // Sum of taxable values
-  totalGST: number; // Sum of GST amounts
-  totalCGST: number;
-  totalSGST: number;
-  totalIGST: number;
-  totalCess: number;
-  totalDiscount: number; // Sum of product + manual item discounts + manual bill discount
-  totalMRP: number;
-  totalCostPrice: number;
-  billDiscount: number; // Manual bill-level discount
-  grandTotalRaw: number; // Subtotal + totalGST + totalCess - billDiscount
-  grandTotal: number; // Rounded grand total
-  roundOff: number; // Rounding difference
-  totalProfit: number;
-  totalMargin: number;
-}
-
-export const validateAndSanitizeInputs = (input: BillingInput): BillingInput => {
+export const validateAndSanitizeInputs = (input) => {
   let costPrice = Math.max(0, Number(input.costPrice) || 0);
   let mrp = Math.max(0, Number(input.mrp) || 0);
   let sellingPrice = Math.max(0, Number(input.sellingPrice) || 0);
@@ -100,7 +37,7 @@ export const validateAndSanitizeInputs = (input: BillingInput): BillingInput => 
   };
 };
 
-export const calculateItemBilling = (input: BillingInput): BillingLineOutput => {
+export const calculateItemBilling = (input) => {
   const sanitized = validateAndSanitizeInputs(input);
   const { costPrice, mrp, sellingPrice, gstRate, gstMode, quantity, taxStructure } = sanitized;
   const itemDiscount = sanitized.itemDiscount ?? 0;
@@ -192,9 +129,9 @@ export const calculateItemBilling = (input: BillingInput): BillingLineOutput => 
 };
 
 export const calculateCartBilling = (
-  cartItems: BillingInput[],
-  billDiscount: number = 0
-): CartBillingOutput => {
+  cartItems,
+  billDiscount = 0
+) => {
   const sanitizedBillDiscount = Math.max(0, Number(billDiscount) || 0);
   
   // Calculate each item/line first
