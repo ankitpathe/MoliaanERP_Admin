@@ -21,34 +21,34 @@ export default function AddPlanForm() {
   const hasWWEPlan = checkWWEPlanExists();
 
   // Form State
-  const [planName, setPlanName] = useState(hasWWEPlan ? '' : 'WWE Pro Plan');
-  const [planCode, setPlanCode] = useState(hasWWEPlan ? '' : 'PLAN-WWE-899');
-  const [badge, setBadge] = useState(hasWWEPlan ? '' : 'Best Value');
-  const [description, setDescription] = useState(hasWWEPlan ? '' : 'WWE Pro SaaS Subscription Tier');
+  const [planName, setPlanName] = useState('');
+  const [planCode, setPlanCode] = useState('');
+  const [badge, setBadge] = useState('');
+  const [description, setDescription] = useState('');
 
   // Pricing State
   const [billingFrequency, setBillingFrequency] = useState('MONTHLY'); // 'MONTHLY' | 'YEARLY'
-  const [monthlyPrice, setMonthlyPrice] = useState(hasWWEPlan ? '' : '899');
-  const [yearlyPrice, setYearlyPrice] = useState(hasWWEPlan ? '' : '8999');
+  const [monthlyPrice, setMonthlyPrice] = useState('');
+  const [yearlyPrice, setYearlyPrice] = useState('');
   const [trialDays, setTrialDays] = useState('14');
 
   // Quota Limits State
   const [unlimitedTerminals, setUnlimitedTerminals] = useState(false);
-  const [terminalLimit, setTerminalLimit] = useState('3');
+  const [terminalLimit, setTerminalLimit] = useState('');
   
-  const [staffLimit, setStaffLimit] = useState('5');
+  const [staffLimit, setStaffLimit] = useState('');
   
   const [unlimitedInvoices, setUnlimitedInvoices] = useState(false);
-  const [invoiceLimit, setInvoiceLimit] = useState('1000');
+  const [invoiceLimit, setInvoiceLimit] = useState('');
 
   // Feature Checklist
   const [features, setFeatures] = useState({
-    sync: !hasWWEPlan,
-    gst: !hasWWEPlan,
-    khata: !hasWWEPlan,
+    sync: false,
+    gst: false,
+    khata: false,
     barcode: false,
-    branding: !hasWWEPlan,
-    support: !hasWWEPlan
+    branding: false,
+    support: false
   });
 
   // Dynamic slug generation
@@ -323,6 +323,7 @@ export default function AddPlanForm() {
               </span>
               <input
                 type="number"
+                placeholder="e.g. 3"
                 value={unlimitedTerminals ? '' : terminalLimit}
                 onChange={e => setTerminalLimit(e.target.value)}
                 disabled={unlimitedTerminals}
@@ -365,6 +366,7 @@ export default function AddPlanForm() {
             </span>
             <input
               type="number"
+              placeholder="e.g. 1000"
               value={unlimitedInvoices ? '' : invoiceLimit}
               onChange={e => setInvoiceLimit(e.target.value)}
               disabled={unlimitedInvoices}
@@ -491,10 +493,10 @@ export default function AddPlanForm() {
             <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Preview Live Card
             </span>
-            <h3 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#111827', margin: 0 }}>
-              {planName.trim() || 'Untitled SaaS Plan'}
+            <h3 style={{ fontSize: '1.45rem', fontWeight: 800, color: planName.trim() ? '#111827' : '#9ca3af', margin: 0 }}>
+              {planName.trim() || 'Your Plan Name'}
             </h3>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', minHeight: '32px' }}>
+            <span style={{ fontSize: '0.75rem', color: description.trim() ? '#6b7280' : '#9ca3af', minHeight: '32px' }}>
               {description.trim() || 'Provide a description to display dynamic tier benefits on the customer checkout page.'}
             </span>
           </div>
@@ -528,14 +530,14 @@ export default function AddPlanForm() {
               <div style={{ background: '#f3f4f6', padding: '8px 12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600 }}>Terminals Limit</span>
                 <span style={{ fontSize: '0.85rem', color: '#111827', fontWeight: 700 }}>
-                  {unlimitedTerminals ? 'Unlimited' : `${terminalLimit} POS`}
+                  {unlimitedTerminals ? 'Unlimited' : `${terminalLimit || 0} POS`}
                 </span>
               </div>
 
               <div style={{ background: '#f3f4f6', padding: '8px 12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600 }}>Staff Cashiers</span>
                 <span style={{ fontSize: '0.85rem', color: '#111827', fontWeight: 700 }}>
-                  {staffLimit} Max
+                  {staffLimit || 0} Max
                 </span>
               </div>
             </div>
@@ -543,7 +545,7 @@ export default function AddPlanForm() {
             <div style={{ background: '#f3f4f6', padding: '8px 12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600 }}>Monthly Invoice Quota</span>
               <span style={{ fontSize: '0.85rem', color: '#111827', fontWeight: 700 }}>
-                {unlimitedInvoices ? 'Unlimited Invoices' : `${parseInt(invoiceLimit).toLocaleString()} / month`}
+                {unlimitedInvoices ? 'Unlimited Invoices' : `${parseInt(invoiceLimit || 0).toLocaleString()} / month`}
               </span>
             </div>
           </div>

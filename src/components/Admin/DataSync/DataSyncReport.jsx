@@ -17,7 +17,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 const SEED_SYNC_LOGS = [
   {
     id: "SYNC-101",
-    timestamp: "2026-08-25T11:47:41.000Z",
+    timestamp: new Date(Date.now() - 600000).toISOString(),
     terminalName: "WWE Counter",
     terminalCode: "POS-WWE",
     deviceMac: "E4:5F:01:2A:8C:99",
@@ -25,11 +25,11 @@ const SEED_SYNC_LOGS = [
     recordsCount: 14,
     latencyMs: 12,
     status: "SUCCESS",
-    payloadSummary: `{"invoices":["INV-WWE-01","INV-WWE-02"],"khataUpdates":[{"customer":"Ankit Pathe","amount":899}]}`
+    payload: { batchId: "SYNC-101", invoices: 14, store: "WWE Arena Supermart", totalAmount: 24186 }
   },
   {
     id: "SYNC-102",
-    timestamp: "2026-08-25T11:37:00.000Z",
+    timestamp: new Date(Date.now() - 1800000).toISOString(),
     terminalName: "Express Billing",
     terminalCode: "POS-02",
     deviceMac: "DC:A6:32:41:78:11",
@@ -37,11 +37,11 @@ const SEED_SYNC_LOGS = [
     recordsCount: 8,
     latencyMs: 18,
     status: "SUCCESS",
-    payloadSummary: `{"stockAdjustments":[{"sku":"PROD-02","quantity":-8}]}`
+    payload: { batchId: "SYNC-102", stockAdjustments: 8, store: "Main Store" }
   },
   {
     id: "SYNC-103",
-    timestamp: "2026-08-25T10:57:00.000Z",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
     terminalName: "Ground Floor Main",
     terminalCode: "POS-01",
     deviceMac: "B8:27:EB:9A:33:40",
@@ -49,7 +49,7 @@ const SEED_SYNC_LOGS = [
     recordsCount: 22,
     latencyMs: 15,
     status: "SUCCESS",
-    payloadSummary: `{"ledgerUpdates":[{"customerId":"CUST-103","synced":true}]}`
+    payload: { batchId: "SYNC-103", khataEntries: 22, store: "Main Store" }
   }
 ];
 
@@ -80,19 +80,30 @@ export default function DataSyncReport() {
       if (!data || data.length === 0) {
         data = SEED_SYNC_LOGS;
       }
-      const normalized = data.map(log => ({
-        ...log,
-        id: log.id || "SYNC-101",
-        timestamp: log.timestamp || "2026-08-25T11:47:41.000Z",
-        terminalName: log.terminalName || "WWE Counter",
-        terminalCode: log.terminalCode || "POS-WWE",
-        deviceMac: log.deviceMac || log.deviceId || "E4:5F:01:2A:8C:99",
-        category: log.category || log.payloadType || "Sales Invoices & Khata",
-        recordsCount: log.recordsCount !== undefined ? Number(log.recordsCount) : 14,
-        latencyMs: log.latencyMs !== undefined ? Number(log.latencyMs) : 12,
-        status: log.status ? String(log.status).toUpperCase() : "SUCCESS",
-        payloadSummary: log.payloadSummary || `{"status":"${log.status || 'SUCCESS'}","recordsCount":${log.recordsCount || 14}}`
-      }));
+      const normalized = data.map(log => {
+        const id = log.id || "SYNC-101";
+        const timestamp = log.timestamp || new Date().toISOString();
+        const terminalName = log.terminalName || "WWE Counter";
+        const terminalCode = log.terminalCode || "POS-WWE";
+        const deviceMac = log.deviceMac || log.deviceId || "E4:5F:01:2A:8C:99";
+        const category = log.category || log.payloadType || "Sales Invoices & Khata";
+        const recordsCount = log.recordsCount !== undefined ? Number(log.recordsCount) : 14;
+        const latencyMs = log.latencyMs !== undefined ? Number(log.latencyMs) : 12;
+        const status = log.status ? String(log.status).toUpperCase() : "SUCCESS";
+        const payload = log.payload || { batchId: id, recordsCount, store: "WWE Arena Supermart" };
+        return {
+          id,
+          timestamp,
+          terminalName,
+          terminalCode,
+          deviceMac,
+          category,
+          recordsCount,
+          latencyMs,
+          status,
+          payload
+        };
+      });
       localStorage.setItem('erp_sync_logs', JSON.stringify(normalized));
       setLogs(normalized);
     };
@@ -105,13 +116,10 @@ export default function DataSyncReport() {
   };
 
   // KPI Calculations
-  const totalBatches = logs.length;
-  const pendingCount = logs.filter(l => l.status === 'PENDING' || l.status === 'QUEUED').length;
-  const failedCount = logs.filter(l => l.status === 'FAILED' || l.status === 'CONFLICT').length;
-  
-  const avgLatency = logs.filter(l => l.status === 'SUCCESS').length > 0
-    ? Math.round(logs.filter(l => l.status === 'SUCCESS').reduce((sum, l) => sum + (l.latencyMs || 0), 0) / logs.filter(l => l.status === 'SUCCESS').length)
-    : 18;
+  const pendingCount = logs.filter(l => l.status === 'PENDING').length;
+  const failedCount = logs.filter(l => l.status === 'FAILED').length;
+  const totalLatency = logs.reduce((sum, l) => sum + (Number(l.latencyMs) || 0), 0);
+  const avgLatency = logs.length > 0 ? Math.round(totalLatency / logs.length) : 0;
 
   // Actions handlers
   const handleForceSync = () => {
@@ -119,8 +127,9 @@ export default function DataSyncReport() {
     toast.showInfo('Sync Engine', 'Triggered sync signal to 4 active terminals');
 
     setTimeout(() => {
+      const newId = `SYNC-${Date.now().toString().slice(-3)}`;
       const newBatch = {
-        id: "SYNC-104",
+        id: newId,
         timestamp: new Date().toISOString(),
         terminalName: "WWE Counter",
         terminalCode: "POS-WWE",
@@ -129,7 +138,7 @@ export default function DataSyncReport() {
         recordsCount: 14,
         latencyMs: 12,
         status: "SUCCESS",
-        payloadSummary: `{"syncedRecords":14,"status":"SUCCESS"}`
+        payload: { batchId: newId, invoices: 14, store: "WWE Arena Supermart" }
       };
       const updated = [newBatch, ...logs];
       saveLogs(updated);
@@ -138,7 +147,7 @@ export default function DataSyncReport() {
       logActivity({
         activityType: 'FORCE_SYNC_TRIGGERED',
         module: 'System Integrity',
-        actionDescription: 'Triggered administrative force sync and added success batch SYNC-104.'
+        actionDescription: `Triggered administrative force sync and added success batch ${newId}.`
       });
 
       toast.showSuccess('Sync Success', 'Successfully synchronized all offline transactions.');
@@ -150,16 +159,17 @@ export default function DataSyncReport() {
   };
 
   const handleConfirmPurge = () => {
-    saveLogs(SEED_SYNC_LOGS);
+    const kept = logs.slice(0, 3);
+    saveLogs(kept);
 
     logActivity({
       activityType: 'SYNC_QUEUE_PURGED',
       module: 'System Integrity',
-      actionDescription: 'Reset sync reports queue logs to standard seed.'
+      actionDescription: 'Purged sync logs keeping the latest 3 logs.'
     });
 
     setIsConfirmPurgeOpen(false);
-    toast.showSuccess('Queue Reset', 'Purged all logs and restored standard seed data.');
+    toast.showSuccess('Queue Purged', 'Cleaned up logs and kept the latest 3 logs.');
   };
 
   const handleRetry = (log) => {
@@ -230,7 +240,7 @@ export default function DataSyncReport() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
         
         {/* Sync Engine Health */}
-        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifycontent: 'space-between' }}>
+        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               Sync Engine Status
@@ -238,7 +248,7 @@ export default function DataSyncReport() {
             </span>
             <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#10b981', margin: '4px 0' }}>99.98% Uptime</h4>
           </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', display: 'flex', alignItems: 'center', justifycontent: 'center', marginLeft: 'auto' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
             <Wifi size={18} />
           </div>
         </div>
@@ -246,7 +256,7 @@ export default function DataSyncReport() {
         <StatCard label="Pending / Queued Batches" value={`${pendingCount} Queued`} icon={Layers} color="#d97706" />
         
         {/* Failed conflicts alert card */}
-        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifycontent: 'space-between' }}>
+        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               Failed / Conflict Syncs
@@ -258,12 +268,12 @@ export default function DataSyncReport() {
             </span>
             <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: failedCount > 0 ? '#ef4444' : '#111827', margin: '4px 0' }}>{failedCount} Batches</h4>
           </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: failedCount > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: failedCount > 0 ? '#ef4444' : '#6b7280', display: 'flex', alignItems: 'center', justifycontent: 'center', marginLeft: 'auto' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: failedCount > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: failedCount > 0 ? '#ef4444' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
             <ShieldAlert size={18} />
           </div>
         </div>
 
-        <StatCard label="Average Node Latency" value={`${avgLatency} ms`} icon={Cpu} color="#0891b2" />
+        <StatCard label="Average Node Latency" value={`${avgLatency}ms`} icon={Cpu} color="#0891b2" />
 
       </div>
 
@@ -456,7 +466,7 @@ export default function DataSyncReport() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#6b7280' }}>Payload Class:</span>
-                <span style={{ fontWeight: 600, color: '#7c3aed' }}>{inspectingLog.payloadType || 'Unclassified'}</span>
+                <span style={{ fontWeight: 600, color: '#7c3aed' }}>{inspectingLog.category || 'Unclassified'}</span>
               </div>
               {inspectingLog.recordsCount !== undefined && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -485,15 +495,20 @@ export default function DataSyncReport() {
                 fontFamily: 'monospace',
                 lineHeight: 1.4
               }}>
-                {inspectingLog.payloadSummary || JSON.stringify({
-                  status: inspectingLog.status || "QUEUED",
-                  recordsCount: inspectingLog.recordsCount || 0,
-                  message: "Batch payload transmission pending queue authorization."
-                }, null, 2)}
+                {JSON.stringify(inspectingLog.payload || {}, null, 2)}
               </pre>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <Button 
+                variant="purple" 
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(inspectingLog.payload || {}, null, 2));
+                  toast.showSuccess('Copied', 'JSON payload copied to clipboard.');
+                }}
+              >
+                Copy JSON
+              </Button>
               <Button variant="secondary" onClick={() => setInspectingLog(null)} style={{ width: '100px' }}>
                 Close
               </Button>

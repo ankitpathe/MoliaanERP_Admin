@@ -20,21 +20,36 @@ export default function AdminLayout({ sidebar, header, children }) {
 
   useEffect(() => {
     const loadAds = () => {
-      const storedAds = JSON.parse(localStorage.getItem('erp_advertisements') || '[]');
-      const verts = storedAds.filter(a => a.type === 'VERTICAL' && a.status === 'ACTIVE');
-      const horizs = storedAds.filter(a => a.type === 'HORIZONTAL' && a.status === 'ACTIVE');
+      const raw = localStorage.getItem('erp_admin_ads') || localStorage.getItem('erp_advertisements') || '[]';
+      const storedAds = JSON.parse(raw);
+      const verts = storedAds.filter(a => 
+        (a.type === 'VERTICAL' || a.placement === 'Merchant Dashboard (Vertical Skyscraper)') && 
+        (a.status === 'ACTIVE' || a.status === 'active')
+      );
+      const horizs = storedAds.filter(a => 
+        (a.type === 'HORIZONTAL' || a.placement === 'POS Dual-Screen (Horizontal Leaderboard)') && 
+        (a.status === 'ACTIVE' || a.status === 'active')
+      );
+
+      console.log("Dashboard Ad Filter Check [Vertical]:", verts);
+      console.log("Dashboard Ad Filter Check [Horizontal]:", horizs);
+
       setActiveVerts(verts);
       setActiveHorizs(horizs);
     };
 
     loadAds();
-    // Listen for changes
     window.addEventListener('storage', loadAds);
     return () => window.removeEventListener('storage', loadAds);
   }, []);
 
   // Auto-rotating vertical ads
   useEffect(() => {
+    if (activeVerts.length > 0) {
+      // Increment initial impression for the first active ad on mount/load
+      incrementImpression(activeVerts[currentVertIndex].id);
+    }
+
     if (activeVerts.length > 1) {
       const vertAd = activeVerts[currentVertIndex];
       const speed = (vertAd?.rotationSpeed || 5) * 1000;
@@ -49,6 +64,10 @@ export default function AdminLayout({ sidebar, header, children }) {
 
   // Auto-rotating horizontal ads
   useEffect(() => {
+    if (activeHorizs.length > 0) {
+      incrementImpression(activeHorizs[currentHorizIndex].id);
+    }
+
     if (activeHorizs.length > 1) {
       const horizAd = activeHorizs[currentHorizIndex];
       const speed = (horizAd?.rotationSpeed || 6) * 1000;
@@ -63,14 +82,15 @@ export default function AdminLayout({ sidebar, header, children }) {
 
   const incrementImpression = (adId) => {
     try {
-      const stored = JSON.parse(localStorage.getItem('erp_advertisements') || '[]');
+      const key = localStorage.getItem('erp_admin_ads') ? 'erp_admin_ads' : 'erp_advertisements';
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
       const updated = stored.map(a => {
         if (a.id === adId) {
-          return { ...a, impressions: (a.impressions || 0) + 1 };
+          return { ...a, impressions: (Number(a.impressions) || 0) + 1 };
         }
         return a;
       });
-      localStorage.setItem('erp_advertisements', JSON.stringify(updated));
+      localStorage.setItem(key, JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }
@@ -78,14 +98,15 @@ export default function AdminLayout({ sidebar, header, children }) {
 
   const handleAdClick = (ad) => {
     try {
-      const stored = JSON.parse(localStorage.getItem('erp_advertisements') || '[]');
+      const key = localStorage.getItem('erp_admin_ads') ? 'erp_admin_ads' : 'erp_advertisements';
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
       const updated = stored.map(a => {
         if (a.id === ad.id) {
-          return { ...a, clicks: (a.clicks || 0) + 1 };
+          return { ...a, clicks: (Number(a.clicks) || 0) + 1 };
         }
         return a;
       });
-      localStorage.setItem('erp_advertisements', JSON.stringify(updated));
+      localStorage.setItem(key, JSON.stringify(updated));
 
       toast.showInfo('Promo Link', `Navigating to target: ${ad.title}`);
       if (ad.targetUrl.startsWith('http')) {

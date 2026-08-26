@@ -1,10 +1,10 @@
 import React from 'react';
-import AdManager from '../../../components/Admin/Advertisements/AdManager';
+import AdsManagement from '../../../components/Admin/Advertisements/AdsManagement';
 
 export default function AdvertisementsPage() {
   return (
     <div style={{ padding: '4px' }}>
-      <AdManager />
+      <AdsManagement />
     </div>
   );
 }

@@ -325,25 +325,40 @@ export default function AllUsersTable() {
       {/* Filter Action Controls */}
       <Card style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px', flexWrap: 'wrap' }}>
-          {['ALL', 'ACTIVE', 'SUSPENDED'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setStatusTab(tab)}
-              style={{
-                padding: '6px 14px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                background: statusTab === tab ? '#1f2937' : 'transparent',
-                color: statusTab === tab ? '#ffffff' : '#6b7280',
-                transition: 'all 0.2s'
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+          {['ALL', 'ACTIVE', 'SUSPENDED'].map((tab) => {
+            const count = tab === 'ALL'
+              ? users.length
+              : users.filter(u => u.status === tab).length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setStatusTab(tab)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: statusTab === tab ? '#1f2937' : 'transparent',
+                  color: statusTab === tab ? '#ffffff' : '#6b7280',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>{tab}</span>
+                <span style={{
+                  padding: '2px 6px',
+                  fontSize: '0.65rem',
+                  borderRadius: '99px',
+                  background: statusTab === tab ? 'rgba(255,255,255,0.2)' : '#e5e7eb',
+                  color: statusTab === tab ? '#ffffff' : '#4b5563'
+                }}>{count}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -377,15 +392,15 @@ export default function AllUsersTable() {
             <tr key={merchant.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName}</span>
-                  <span style={{ fontSize: '0.725rem', color: '#4b5563' }}>Owner: {merchant.ownerName}</span>
-                  <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id}</span>
+                  <strong style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName || "WWE Arena Supermart"}</strong>
+                  <span style={{ fontSize: '0.725rem', color: '#4b5563' }}>{merchant.ownerName || "Ankit Pathe"}</span>
+                  <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id || 'USR-101'}</span>
                 </div>
               </td>
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.email}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{merchant.phone}</span>
+                  <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.email || "ankit@wwearena.com"}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{merchant.phone || "9876543210"}</span>
                 </div>
               </td>
               <td style={{ padding: '14px 16px', fontWeight: 600 }}>{merchant.city || 'Chhindwara'}</td>
@@ -399,7 +414,7 @@ export default function AllUsersTable() {
                   backgroundColor: '#f3e8ff',
                   color: '#6b21a8'
                 }}>
-                  {merchant.activePlan}
+                  {merchant.activePlan || merchant.planName || 'WWE Pro Plan (₹899)'}
                 </span>
               </td>
               
@@ -413,14 +428,15 @@ export default function AllUsersTable() {
                     <div style={{ 
                       width: `${Math.min(100, Math.round(((merchant.terminalsUsed ?? 1) / (merchant.terminalsAllowed ?? 3)) * 100))}%`, 
                       height: '100%', 
-                      background: (merchant.terminalsUsed ?? 1) >= (merchant.terminalsAllowed ?? 3) ? '#d97706' : '#10b981' 
+                      background: (merchant.terminalsUsed ?? 1) >= (merchant.terminalsAllowed ?? 3) ? '#d97706' : '#10b981',
+                      transition: 'width 0.4s ease-out'
                     }} />
                   </div>
                 </div>
               </td>
 
               <td style={{ padding: '14px 16px', color: '#6b7280' }}>
-                {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString() : '25 Aug 2026'}
+                {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "10 Jan 2026"}
               </td>
               <td style={{ padding: '14px 16px' }}>
                 <Badge variant={String(merchant.status).toUpperCase() === 'ACTIVE' ? 'success' : 'danger'}>

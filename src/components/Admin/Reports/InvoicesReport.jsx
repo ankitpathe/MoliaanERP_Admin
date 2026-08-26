@@ -14,11 +14,63 @@ import Badge from '../../../components/ui/Badge';
 import Table from '../../../components/ui/Table';
 
 const SEED_INVOICES = [
-  { id: "INV-2026-001", counterCode: "POS-01", customerName: "Ramesh Sharma", customerPhone: "9876543210", date: new Date().toISOString(), items: [{ name: "Fortune Refined Oil 1L", qty: 2, price: 140 }, { name: "Parle-G Biscuit 100g", qty: 5, price: 10 }], taxableAmount: 300, cgst: 15, sgst: 15, grandTotal: 330, paymentMode: "UPI", status: "COMPLETED" },
-  { id: "INV-2026-002", counterCode: "POS-02", customerName: "Sunita Gupta", customerPhone: "8765432109", date: new Date(Date.now() - 3600000).toISOString(), items: [{ name: "Aashirvaad Atta 5kg", qty: 1, price: 260 }, { name: "Tata Salt 1kg", qty: 2, price: 28 }], taxableAmount: 280, cgst: 18, sgst: 18, grandTotal: 316, paymentMode: "Cash", status: "COMPLETED" },
-  { id: "INV-2026-003", counterCode: "POS-01", customerName: "Vijay Kumar", customerPhone: "7654321098", date: new Date(Date.now() - 7200000).toISOString(), items: [{ name: "Surf Excel Bar", qty: 4, price: 30 }, { name: "Colgate Paste 200g", qty: 1, price: 95 }], taxableAmount: 195, cgst: 10, sgst: 10, grandTotal: 215, paymentMode: "Card", status: "COMPLETED" },
-  { id: "INV-2026-004", counterCode: "POS-02", customerName: "Amit Singh", customerPhone: "6543210987", date: new Date(Date.now() - 86400000).toISOString(), items: [{ name: "Amul Butter 500g", qty: 1, price: 220 }], taxableAmount: 220, cgst: 15, sgst: 15, grandTotal: 250, paymentMode: "Khata", status: "COMPLETED" },
-  { id: "INV-2026-005", counterCode: "POS-01", customerName: "Anjali Verma", customerPhone: "5432109876", date: new Date(Date.now() - 172800000).toISOString(), items: [{ name: "Catch Turmeric 100g", qty: 3, price: 33.33 }], taxableAmount: 100, cgst: 10, sgst: 10, grandTotal: 120, paymentMode: "UPI", status: "COMPLETED" }
+  {
+    id: "INV-2026-0891",
+    invoiceNo: "INV-2026-0891",
+    createdAt: new Date(Date.now() - 1800000).toISOString(),
+    customerName: "Ramesh Sharma",
+    customerPhone: "9876543210",
+    storeName: "WWE Arena Supermart",
+    counterCode: "POS-WWE",
+    itemsCount: 6,
+    subTotal: 3450,
+    taxAmount: 621,
+    grandTotal: 4071,
+    paymentMode: "UPI",
+    status: "PAID",
+    items: [
+      { name: "Basmati Rice 5kg", qty: 2, price: 650, total: 1300 },
+      { name: "Mustard Oil 1L", qty: 3, price: 180, total: 540 },
+      { name: "Dry Fruits Pack 500g", qty: 2, price: 805.5, total: 1610 }
+    ]
+  },
+  {
+    id: "INV-2026-0890",
+    invoiceNo: "INV-2026-0890",
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    customerName: "Deepak Verma",
+    customerPhone: "9822334455",
+    storeName: "WWE Arena Supermart",
+    counterCode: "POS-01",
+    itemsCount: 3,
+    subTotal: 1250,
+    taxAmount: 225,
+    grandTotal: 1475,
+    paymentMode: "CASH",
+    status: "PAID",
+    items: [
+      { name: "Dairy Butter 500g", qty: 2, price: 275, total: 550 },
+      { name: "Wheat Flour 10kg", qty: 2, price: 350, total: 700 }
+    ]
+  },
+  {
+    id: "INV-2026-0889",
+    invoiceNo: "INV-2026-0889",
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    customerName: "Sanjay Singhania",
+    customerPhone: "9112233445",
+    storeName: "Gupta Supermart",
+    counterCode: "POS-02",
+    itemsCount: 8,
+    subTotal: 15800,
+    taxAmount: 2844,
+    grandTotal: 18644,
+    paymentMode: "KHATA",
+    status: "PARTIAL",
+    items: [
+      { name: "Bulk Grocery Consignment", qty: 1, price: 15800, total: 15800 }
+    ]
+  }
 ];
 
 export default function InvoicesReport() {
@@ -36,21 +88,62 @@ export default function InvoicesReport() {
 
   useEffect(() => {
     const loadInvoices = () => {
-      const raw = localStorage.getItem('erp_sales') || localStorage.getItem('invoices');
-      if (!raw || JSON.parse(raw).length === 0) {
-        localStorage.setItem('erp_sales', JSON.stringify(SEED_INVOICES));
-        setInvoices(SEED_INVOICES);
-      } else {
-        // Parse and ensure data is consistent
-        const parsed = JSON.parse(raw);
-        setInvoices(parsed);
+      const raw = localStorage.getItem('erp_invoices') || localStorage.getItem('invoices');
+      let data = [];
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch (e) {
+          data = [];
+        }
       }
+      if (!data || data.length === 0) {
+        data = SEED_INVOICES;
+      }
+      const normalized = data.map(inv => {
+        const id = inv.id || inv.invoiceNo || "INV-" + Date.now().toString().slice(-4);
+        const invoiceNo = inv.invoiceNo || id;
+        const createdAt = inv.createdAt || inv.date || new Date().toISOString();
+        const customerName = inv.customerName || "Walk-in";
+        const customerPhone = inv.customerPhone || "N/A";
+        const storeName = inv.storeName || "WWE Arena Supermart";
+        const counterCode = inv.counterCode || "POS-WWE";
+        const items = inv.items || [];
+        const itemsCount = inv.itemsCount !== undefined ? Number(inv.itemsCount) : items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+        
+        const computedSubTotal = items.reduce((s, it) => s + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
+        const subTotal = Number(inv.subTotal) > 0 ? Number(inv.subTotal) : computedSubTotal;
+        const taxAmount = Number(inv.taxAmount) >= 0 ? Number(inv.taxAmount) : Math.round(subTotal * 0.18);
+        const grandTotal = Number(inv.grandTotal) > 0 ? Number(inv.grandTotal) : (subTotal + taxAmount);
+        
+        const paymentMode = inv.paymentMode ? String(inv.paymentMode).toUpperCase() : "CASH";
+        const status = inv.status ? String(inv.status).toUpperCase() : "PAID";
+
+        return {
+          id,
+          invoiceNo,
+          createdAt,
+          customerName,
+          customerPhone,
+          storeName,
+          counterCode,
+          itemsCount,
+          subTotal,
+          taxAmount,
+          grandTotal,
+          paymentMode,
+          status,
+          items
+        };
+      });
+      localStorage.setItem('erp_invoices', JSON.stringify(normalized));
+      setInvoices(normalized);
     };
     loadInvoices();
   }, []);
 
   const handleRefresh = () => {
-    const raw = localStorage.getItem('erp_sales') || localStorage.getItem('invoices') || '[]';
+    const raw = localStorage.getItem('erp_invoices') || localStorage.getItem('invoices') || '[]';
     setInvoices(JSON.parse(raw));
     toast.showSuccess('Data Refreshed', 'Invoice logs refreshed successfully.');
   };
@@ -62,25 +155,21 @@ export default function InvoicesReport() {
   // KPI Calculations (based on filtered list)
   const getFilteredInvoices = () => {
     return invoices.filter(inv => {
-      // Search
       const matchesSearch = 
-        (inv.id || '').toLowerCase().includes(search.toLowerCase()) ||
-        (inv.customerName || '').toLowerCase().includes(search.toLowerCase());
+        (inv.invoiceNo || '').toLowerCase().includes(search.toLowerCase()) ||
+        (inv.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
+        (inv.customerPhone || '').toLowerCase().includes(search.toLowerCase());
 
-      // Counter
       const matchesCounter = counterFilter === 'All' || inv.counterCode === counterFilter;
+      const matchesPayment = paymentFilter === 'All' || inv.paymentMode === paymentFilter.toUpperCase();
 
-      // Payment mode
-      const matchesPayment = paymentFilter === 'All' || inv.paymentMode === paymentFilter;
-
-      // Date Range
       if (dateRange !== 'ALL_TIME') {
-        const invTime = new Date(inv.date).getTime();
+        const invTime = new Date(inv.createdAt).getTime();
         const diffHrs = (Date.now() - invTime) / 3600000;
         if (dateRange === 'TODAY' && diffHrs > 24) return false;
         if (dateRange === 'YESTERDAY' && (diffHrs < 24 || diffHrs > 48)) return false;
         if (dateRange === 'LAST_7_DAYS' && diffHrs > 168) return false;
-        if (dateRange === 'THIS_MONTH' && new Date(inv.date).getMonth() !== new Date().getMonth()) return false;
+        if (dateRange === 'THIS_MONTH' && new Date(inv.createdAt).getMonth() !== new Date().getMonth()) return false;
       }
 
       return matchesSearch && matchesCounter && matchesPayment;
@@ -89,10 +178,12 @@ export default function InvoicesReport() {
 
   const filtered = getFilteredInvoices();
 
-  const grossSales = filtered.reduce((sum, inv) => sum + (Number(inv.grandTotal) || 0), 0);
-  const totalInvoices = filtered.length;
-  const totalGST = filtered.reduce((sum, inv) => sum + (Number(inv.cgst || 0) + Number(inv.sgst || 0)), 0);
-  const avgBillValue = totalInvoices > 0 ? Math.round(grossSales / totalInvoices) : 0;
+  const totalVolume = filtered.reduce((sum, inv) => sum + (Number(inv.grandTotal) || 0), 0);
+  const paidInvoicesCount = filtered.filter(i => i.status === 'PAID').length;
+  const outstandingKhata = filtered
+    .filter(i => i.paymentMode === 'KHATA' || i.status === 'PARTIAL')
+    .reduce((sum, inv) => sum + (Number(inv.grandTotal) || 0), 0);
+  const totalGST = filtered.reduce((sum, inv) => sum + (Number(inv.taxAmount) || 0), 0);
 
   // Counter options list
   const uniqueCounters = ['All', ...new Set(invoices.map(inv => inv.counterCode).filter(Boolean))];
@@ -104,20 +195,19 @@ export default function InvoicesReport() {
       return;
     }
     
-    // CSV Header row
-    const headers = ['Invoice ID', 'Date', 'Terminal', 'Customer', 'Phone', 'Taxable Amount', 'CGST', 'SGST', 'Grand Total', 'Payment Mode', 'Status'];
+    const headers = ['Invoice ID', 'Date', 'Terminal', 'Store', 'Customer', 'Phone', 'Sub Total', 'Tax Amount', 'Grand Total', 'Payment Mode', 'Status'];
     const rows = filtered.map(inv => [
-      inv.id,
-      inv.date ? new Date(inv.date).toLocaleString() : 'N/A',
+      inv.invoiceNo,
+      inv.createdAt ? new Date(inv.createdAt).toLocaleString() : 'N/A',
       inv.counterCode || 'N/A',
+      inv.storeName || 'N/A',
       inv.customerName || 'Walk-in',
       inv.customerPhone || 'N/A',
-      inv.taxableAmount || 0,
-      inv.cgst || 0,
-      inv.sgst || 0,
+      inv.subTotal || 0,
+      inv.taxAmount || 0,
       inv.grandTotal || 0,
-      inv.paymentMode || 'Cash',
-      inv.status || 'COMPLETED'
+      inv.paymentMode || 'CASH',
+      inv.status || 'PAID'
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -125,7 +215,7 @@ export default function InvoicesReport() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Moliaan_Invoices_Audit_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', 'Invoices_Report_2026.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -139,13 +229,11 @@ export default function InvoicesReport() {
   };
 
   const handlePrintReceipt = (receipt) => {
-    // Compute totals from items in case stored values are 0/missing
     const itemsArr = receipt.items || [];
     const computedTaxable = itemsArr.reduce((sum, it) => sum + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
-    const taxableAmt  = Number(receipt.taxableAmount) > 0 ? Number(receipt.taxableAmount) : computedTaxable;
-    const cgstAmt     = Number(receipt.cgst) > 0 ? Number(receipt.cgst) : 0;
-    const sgstAmt     = Number(receipt.sgst) > 0 ? Number(receipt.sgst) : 0;
-    const grandAmt    = Number(receipt.grandTotal) > 0 ? Number(receipt.grandTotal) : (taxableAmt + cgstAmt + sgstAmt);
+    const taxableAmt  = Number(receipt.subTotal) > 0 ? Number(receipt.subTotal) : computedTaxable;
+    const taxAmt      = Number(receipt.taxAmount) >= 0 ? Number(receipt.taxAmount) : Math.round(taxableAmt * 0.18);
+    const grandAmt    = Number(receipt.grandTotal) > 0 ? Number(receipt.grandTotal) : (taxableAmt + taxAmt);
 
     const itemRows = itemsArr.map(it => `
       <tr>
@@ -157,7 +245,7 @@ export default function InvoicesReport() {
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Receipt ${receipt.id}</title>
+<title>Receipt ${receipt.invoiceNo}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Courier New', monospace; font-size: 12px; width: 280px; padding: 16px; }
@@ -174,11 +262,11 @@ export default function InvoicesReport() {
   <div class="center">
     <div class="title">MOLIAAN RETAIL ERP</div>
     <div>Terminal: ${receipt.counterCode || 'N/A'}</div>
-    <div>${new Date(receipt.date).toLocaleString()}</div>
+    <div>${new Date(receipt.createdAt).toLocaleString()}</div>
   </div>
   <hr class="divider"/>
   <table>
-    <tr><td>Invoice No:</td><td style="text-align:right;font-weight:bold;">${receipt.id}</td></tr>
+    <tr><td>Invoice No:</td><td style="text-align:right;font-weight:bold;">${receipt.invoiceNo}</td></tr>
     <tr><td>Customer:</td><td style="text-align:right;">${receipt.customerName || 'Walk-in'}</td></tr>
     ${receipt.customerPhone ? `<tr><td>Contact:</td><td style="text-align:right;">${receipt.customerPhone}</td></tr>` : ''}
   </table>
@@ -187,13 +275,12 @@ export default function InvoicesReport() {
   <hr class="divider"/>
   <table class="totals">
     <tr><td>Taxable Amount:</td><td style="text-align:right;">&#8377;${taxableAmt.toFixed(2)}</td></tr>
-    <tr><td>CGST:</td><td style="text-align:right;">&#8377;${cgstAmt.toFixed(2)}</td></tr>
-    <tr><td>SGST:</td><td style="text-align:right;">&#8377;${sgstAmt.toFixed(2)}</td></tr>
+    <tr><td>GST Amount:</td><td style="text-align:right;">&#8377;${taxAmt.toFixed(2)}</td></tr>
   </table>
   <table class="grand">
     <tr><td><b>Grand Total:</b></td><td style="text-align:right;"><b>&#8377;${grandAmt.toFixed(2)}</b></td></tr>
   </table>
-  <div class="footer">Paid via ${receipt.paymentMode || 'Cash'} &bull; Thank You!</div>
+  <div class="footer">Paid via ${receipt.paymentMode || 'CASH'} &bull; Thank You!</div>
 </body>
 </html>`;
 
@@ -220,13 +307,12 @@ export default function InvoicesReport() {
 
   const tableHeaders = [
     { label: '' }, // expandable indicator arrow
-    { label: 'Invoice #' },
-    { label: 'Date/Time' },
-    { label: 'POS Terminal' },
-    { label: 'Customer' },
-    { label: 'Taxable / GST' },
-    { label: 'Grand Total' },
-    { label: 'Payment Mode', style: { textAlign: 'center' } },
+    { label: 'Invoice No & Time' },
+    { label: 'Customer Details' },
+    { label: 'Store & Counter' },
+    { label: 'Amount & Items' },
+    { label: 'Payment Mode' },
+    { label: 'Status' },
     { label: 'Actions', style: { textAlign: 'right' } }
   ];
 
@@ -244,7 +330,7 @@ export default function InvoicesReport() {
               <RefreshCw size={14} /> Refresh Data
             </Button>
             <Button variant="purple" onClick={handleExportCSV}>
-              <Download size={14} /> Export to CSV
+              <Download size={14} /> Export Invoices CSV
             </Button>
           </>
         }
@@ -252,10 +338,10 @@ export default function InvoicesReport() {
 
       {/* KPI Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <StatCard label="Gross Sales Turnover" value={`₹${grossSales.toLocaleString('en-IN')}`} icon={Receipt} color="#4f46e5" />
-        <StatCard label="Total Invoices Generated" value={totalInvoices} icon={Layers} color="#10b981" />
-        <StatCard label="Total GST Collected" value={`₹${totalGST.toLocaleString('en-IN')}`} icon={CreditCard} color="#0891b2" />
-        <StatCard label="Average Bill Value" value={`₹${avgBillValue.toLocaleString('en-IN')}`} icon={Receipt} color="#dc2626" />
+        <StatCard label="Total Processed Volume" value={`₹${totalVolume.toLocaleString('en-IN')}`} icon={Receipt} color="#4f46e5" />
+        <StatCard label="Paid Invoices" value={paidInvoicesCount} icon={Layers} color="#10b981" />
+        <StatCard label="Outstanding Khata" value={`₹${outstandingKhata.toLocaleString('en-IN')}`} icon={CreditCard} color="#0891b2" />
+        <StatCard label="Total GST Collected" value={`₹${totalGST.toLocaleString('en-IN')}`} icon={Receipt} color="#dc2626" />
       </div>
 
       {/* Filter Controls Card */}
@@ -302,14 +388,13 @@ export default function InvoicesReport() {
       <Table headers={tableHeaders}>
         {filtered.length === 0 ? (
           <tr>
-            <td colSpan={9} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+            <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
               No invoice records matching active filters.
             </td>
           </tr>
         ) : (
           filtered.map(inv => {
             const isExpanded = !!expandedRows[inv.id];
-            const taxTotal = (Number(inv.cgst) || 0) + (Number(inv.sgst) || 0);
             return (
               <React.Fragment key={inv.id}>
                 {/* Master Row */}
@@ -324,29 +409,45 @@ export default function InvoicesReport() {
                   <td style={{ padding: '14px 16px', width: '20px', cursor: 'pointer' }} onClick={() => toggleRow(inv.id)}>
                     {isExpanded ? <ChevronUp size={14} style={{ color: '#7c3aed' }} /> : <ChevronDown size={14} />}
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>{inv.id}</td>
-                  <td style={{ padding: '14px 16px', color: '#6b7280' }}>
-                    {inv.date ? new Date(inv.date).toLocaleString() : 'N/A'}
-                  </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{inv.counterCode || 'N/A'}</td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 600, color: '#374151' }}>{inv.customerName || 'Walk-in'}</span>
-                      {inv.customerPhone && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{inv.customerPhone}</span>}
+                      <strong style={{ fontWeight: 700, color: '#111827' }}>{inv.invoiceNo}</strong>
+                      <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>{new Date(inv.createdAt).toLocaleString()}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: 600, color: '#374151' }}>{inv.customerName}</span>
+                      <span style={{ display: 'inline-flex', alignSelf: 'flex-start', padding: '1px 6px', fontSize: '0.65rem', background: '#f1f5f9', borderRadius: '9999px', color: '#475569' }}>
+                        {inv.customerPhone}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: 600, color: '#4b5563' }}>{inv.storeName}</span>
+                      <span style={{ display: 'inline-flex', alignSelf: 'flex-start', padding: '1px 6px', fontSize: '0.65rem', background: '#f3e8ff', borderRadius: '4px', color: '#6b21a8', fontWeight: 700 }}>
+                        {inv.counterCode}
+                      </span>
                     </div>
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 600 }}>₹{(inv.taxableAmount || 0).toFixed(2)}</span>
-                      <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>GST: ₹{taxTotal.toFixed(2)}</span>
+                      <strong style={{ fontWeight: 700, color: '#111827' }}>₹{inv.grandTotal.toLocaleString('en-IN')}</strong>
+                      <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>{inv.itemsCount} items</span>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>
-                    ₹{(inv.grandTotal || 0).toLocaleString('en-IN')}
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <Badge variant={inv.paymentMode === 'UPI' ? 'success' : inv.paymentMode === 'Khata' ? 'warning' : 'info'}>
+                  <td style={{ padding: '14px 16px' }}>
+                    <Badge 
+                      variant={inv.paymentMode === 'CASH' ? 'success' : inv.paymentMode === 'KHATA' ? 'warning' : 'info'}
+                      style={inv.paymentMode === 'UPI' ? { background: '#f3e8ff', color: '#6b21a8' } : {}}
+                    >
                       {inv.paymentMode}
+                    </Badge>
+                  </td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <Badge variant={inv.status === 'PAID' ? 'success' : 'warning'}>
+                      {inv.status}
                     </Badge>
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'right' }}>
@@ -359,7 +460,7 @@ export default function InvoicesReport() {
                 {/* Nested Detail Row */}
                 {isExpanded && (
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f3f4f6' }}>
-                    <td colSpan={9} style={{ padding: '12px 24px 16px 42px' }}>
+                    <td colSpan={8} style={{ padding: '12px 24px 16px 42px' }}>
                       <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', background: '#ffffff', overflow: 'hidden' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                           <thead>
@@ -395,10 +496,9 @@ export default function InvoicesReport() {
       {activeReceipt && (() => {
         const itemsArr = activeReceipt.items || [];
         const computedTaxable = itemsArr.reduce((sum, it) => sum + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
-        const taxableAmt = Number(activeReceipt.taxableAmount) > 0 ? Number(activeReceipt.taxableAmount) : computedTaxable;
-        const cgstAmt    = Number(activeReceipt.cgst) > 0 ? Number(activeReceipt.cgst) : 0;
-        const sgstAmt    = Number(activeReceipt.sgst) > 0 ? Number(activeReceipt.sgst) : 0;
-        const grandAmt   = Number(activeReceipt.grandTotal) > 0 ? Number(activeReceipt.grandTotal) : (taxableAmt + cgstAmt + sgstAmt);
+        const taxableAmt = Number(activeReceipt.subTotal) > 0 ? Number(activeReceipt.subTotal) : computedTaxable;
+        const taxAmt      = Number(activeReceipt.taxAmount) >= 0 ? Number(activeReceipt.taxAmount) : Math.round(taxableAmt * 0.18);
+        const grandAmt   = Number(activeReceipt.grandTotal) > 0 ? Number(activeReceipt.grandTotal) : (taxableAmt + taxAmt);
         return (
           <>
             <div
@@ -425,13 +525,13 @@ export default function InvoicesReport() {
               <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '12px' }}>
                 <span style={{ fontSize: '1rem', fontWeight: 800 }}>MOLIAAN RETAIL ERP</span>
                 <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Receipt Outlet POS Terminal: {activeReceipt.counterCode}</span>
-                <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Date: {new Date(activeReceipt.date).toLocaleString()}</span>
+                <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Date: {new Date(activeReceipt.createdAt).toLocaleString()}</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                   <span>Invoice No:</span>
-                  <strong>{activeReceipt.id}</strong>
+                  <strong>{activeReceipt.invoiceNo}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                   <span>Customer:</span>
@@ -460,12 +560,8 @@ export default function InvoicesReport() {
                   <span>₹{taxableAmt.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span>CGST:</span>
-                  <span>₹{cgstAmt.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span>SGST:</span>
-                  <span>₹{sgstAmt.toFixed(2)}</span>
+                  <span>GST Amount:</span>
+                  <span>₹{taxAmt.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 800, marginTop: '4px' }}>
                   <span>Grand Total:</span>
@@ -482,7 +578,7 @@ export default function InvoicesReport() {
                   Close
                 </Button>
                 <Button variant="purple" onClick={() => handlePrintReceipt(activeReceipt)} style={{ flex: 1, gap: '4px' }}>
-                  <Printer size={12} /> Reprint
+                  <Printer size={12} /> Print Receipt
                 </Button>
               </div>
             </div>
