@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
 import { Monitor, UserCheck, Cpu, Key, CheckSquare, Square } from 'lucide-react';
+import Select from '../../ui/Select';
 
 const DUMMY_MERCHANTS = [
   { id: 'M-101', name: 'Gourmet Kitchen' },
@@ -17,40 +18,18 @@ export default function AddCounterForm() {
 
   // Form State
   const [name, setName] = useState('');
-  const [counterId, setCounterId] = useState('');
-  const [type, setType] = useState('Retail');
-  const [merchantId, setMerchantId] = useState('');
-  const [branch, setBranch] = useState('');
-  const [deviceModel, setDeviceModel] = useState('');
-  const [serialNumber, setSerialNumber] = useState('');
-  const [syncEndpoint, setSyncEndpoint] = useState('');
+  const [code, setCode] = useState('');
+  const [location, setLocation] = useState('');
   const [assignedStaff, setAssignedStaff] = useState([]);
-  const [pin, setPin] = useState('');
-  const [isActive, setIsActive] = useState(true);
+  const [printerType, setPrinterType] = useState('Thermal 80mm');
 
   // Lists
-  const [merchants, setMerchants] = useState([]);
   const [usersList, setUsersList] = useState([]);
 
   // Errors State
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Determine Counter ID
-    const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
-    const nextNum = existing.length + 1;
-    const formattedId = `CTR-00${nextNum}`;
-    setCounterId(formattedId);
-
-    // Load Merchants or seed
-    const storedMerchants = JSON.parse(localStorage.getItem('merchants') || '[]');
-    if (storedMerchants.length === 0) {
-      localStorage.setItem('merchants', JSON.stringify(DUMMY_MERCHANTS));
-      setMerchants(DUMMY_MERCHANTS);
-    } else {
-      setMerchants(storedMerchants);
-    }
-
     // Load Users for staff assignment
     const storedUsers = JSON.parse(localStorage.getItem('erp_users') || '[]');
     if (storedUsers.length === 0) {
@@ -80,8 +59,8 @@ export default function AddCounterForm() {
     if (!name.trim()) {
       newErrors.name = 'Counter Name is required';
     }
-    if (!merchantId) {
-      newErrors.merchantId = 'Please select a Merchant';
+    if (!code.trim()) {
+      newErrors.code = 'Counter Code is required';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -94,38 +73,28 @@ export default function AddCounterForm() {
       const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
       
       const newCounter = {
-        id: counterId,
+        id: "CTR-" + Date.now().toString().slice(-4),
         name: name.trim(),
-        code: counterId, // Mapped to code for list tables compatibility
-        type,
-        merchantId,
-        branch: branch.trim() || 'General',
-        deviceModel: deviceModel.trim(),
-        serialNumber: serialNumber.trim(),
-        syncEndpoint: syncEndpoint.trim(),
-        assignedStaff,
-        pin: pin.trim(),
-        status: isActive ? 'Online' : 'Offline', // Online maps to active in reports
-        syncStatus: 'not_synced',
+        code: code.trim() || ("POS-" + name.toUpperCase().slice(0, 4)),
+        location: location.trim() || "Main Retail Outlet",
+        assignedStaff: assignedStaff.join(', ') || "Default Cashier",
+        printerType: printerType || "Thermal 80mm ESC/POS",
+        status: "ONLINE",
         totalBillsToday: 0,
-        totalSalesToday: 0,
-        createdAt: new Date().toISOString(),
+        grossSalesToday: 0,
         lastHeartbeat: new Date().toISOString()
       };
 
-      const updated = [...existing, newCounter];
+      const updated = [newCounter, ...existing]; // PREPEND new counter record
       localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
-
-      // Append to legacy 'counters' key just in case
-      localStorage.setItem('counters', JSON.stringify(updated));
 
       logActivity({
         activityType: 'COUNTER_REGISTERED',
         module: 'Counters',
-        actionDescription: `Created new POS counter "${name}" with ID "${counterId}"`
+        actionDescription: `Registered new billing terminal ${newCounter.name}`
       });
 
-      toast.showSuccess('Success', 'Counter added successfully.');
+      toast.showSuccess('Success', `Registered new billing terminal ${newCounter.name}`);
       
       setTimeout(() => {
         navigate('/admin/counters/reports');
@@ -149,7 +118,7 @@ export default function AddCounterForm() {
             Add Counter
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-            Register a new POS counter and assign it to a merchant.
+            Register a new POS counter and assign it to a location.
           </span>
         </div>
 
@@ -208,90 +177,34 @@ export default function AddCounterForm() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter ID</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Code *</span>
               <input 
                 type="text" 
-                value={counterId}
-                disabled
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  fontSize: '0.85rem',
-                  background: '#f3f4f6',
-                  color: '#9ca3af',
-                  cursor: 'not-allowed'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Type</span>
-              <select
-                value={type}
-                onChange={e => setType(e.target.value)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  background: '#ffffff'
-                }}
-              >
-                <option value="Retail">Retail</option>
-                <option value="Billing">Billing</option>
-                <option value="Kiosk">Kiosk</option>
-                <option value="Mobile POS">Mobile POS</option>
-              </select>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Section 2: Assign to Merchant */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <UserCheck size={18} style={{ color: '#7c3aed' }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Section 2 - Assign to Merchant
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Select Merchant *</span>
-              <select
-                value={merchantId}
+                value={code}
                 onChange={e => {
-                  setMerchantId(e.target.value);
-                  if (errors.merchantId) setErrors(prev => ({ ...prev, merchantId: null }));
+                  setCode(e.target.value);
+                  if (errors.code) setErrors(prev => ({ ...prev, code: null }));
                 }}
+                placeholder="e.g. POS-WWE"
                 style={{
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: errors.merchantId ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  border: errors.code ? '1px solid #dc2626' : '1px solid #d1d5db',
                   fontSize: '0.85rem',
                   outline: 'none',
                   background: '#ffffff'
                 }}
-              >
-                <option value="">-- Choose Merchant --</option>
-                {merchants.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-              {errors.merchantId && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.merchantId}</span>}
+              />
+              {errors.code && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.code}</span>}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Branch / Location</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Location</span>
               <input 
                 type="text" 
-                value={branch}
-                onChange={e => setBranch(e.target.value)}
-                placeholder="e.g. Main Outlet, Ground Floor"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="e.g. Main Store"
                 style={{
                   padding: '10px 14px',
                   borderRadius: '8px',
@@ -306,80 +219,40 @@ export default function AddCounterForm() {
           </div>
         </div>
 
-        {/* Section 3: Hardware Info */}
+        {/* Section 2: Printer Setup */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
             <Cpu size={18} style={{ color: '#7c3aed' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Section 3 - Hardware Info (Optional)
+              Section 2 - Hardware & Printer Setup
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Device Model</span>
-              <input 
-                type="text" 
-                value={deviceModel}
-                onChange={e => setDeviceModel(e.target.value)}
-                placeholder="e.g. HP Engage One"
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  background: '#ffffff'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Serial Number</span>
-              <input 
-                type="text" 
-                value={serialNumber}
-                onChange={e => setSerialNumber(e.target.value)}
-                placeholder="e.g. SN-8821094A"
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  background: '#ffffff'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Sync Endpoint / IP Address</span>
-              <input 
-                type="text" 
-                value={syncEndpoint}
-                onChange={e => setSyncEndpoint(e.target.value)}
-                placeholder="e.g. 192.168.1.150"
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  background: '#ffffff'
-                }}
-              />
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Printer Type</span>
+              <Select
+                value={printerType}
+                onChange={e => setPrinterType(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="Thermal 80mm">Thermal 80mm</option>
+                <option value="Thermal 58mm">Thermal 58mm</option>
+                <option value="Laser A4">Laser A4</option>
+                <option value="Dot Matrix">Dot Matrix</option>
+              </Select>
             </div>
 
           </div>
         </div>
 
-        {/* Section 4: Access & Assignment */}
+        {/* Section 3: Access & Assignment */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Key size={18} style={{ color: '#7c3aed' }} />
+            <UserCheck size={18} style={{ color: '#7c3aed' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Section 4 - Access & Assignment
+              Section 3 - Access & Assignment
             </span>
           </div>
 
@@ -425,76 +298,11 @@ export default function AddCounterForm() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Access PIN (4-digit numeric)</span>
-              <input 
-                type="text" 
-                maxLength={4}
-                value={pin}
-                onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="e.g. 1234"
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  background: '#ffffff'
-                }}
-              />
-            </div>
-
-          </div>
-        </div>
-
-        {/* Section 5: Status */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Status:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => setIsActive(!isActive)}>
-                <div style={{
-                  width: '34px',
-                  height: '20px',
-                  borderRadius: '99px',
-                  background: isActive ? '#10b981' : '#d1d5db',
-                  position: 'relative',
-                  transition: 'background-color 0.2s ease'
-                }}>
-                  <div style={{
-                    width: '14px',
-                    height: '14px',
-                    borderRadius: '50%',
-                    background: '#ffffff',
-                    position: 'absolute',
-                    top: '3px',
-                    left: isActive ? '17px' : '3px',
-                    transition: 'left 0.2s ease'
-                  }} />
-                </div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isActive ? '#065f46' : '#991b1b' }}>
-                  {isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </div>
-
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '4px 10px',
-              borderRadius: '99px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              background: '#f3f4f6',
-              color: '#4b5563'
-            }}>
-              Sync Status: Not Synced Yet
-            </span>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div style={{ display: 'flex', justifyContext: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
           <button 
             type="submit"
             style={{
@@ -535,7 +343,6 @@ export default function AddCounterForm() {
         </div>
 
       </form>
-
     </div>
   );
 }

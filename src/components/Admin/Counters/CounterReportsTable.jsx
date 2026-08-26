@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
-import { Monitor, Activity, Radio, RefreshCw, Eye, Edit } from 'lucide-react';
+import { Monitor, Activity, Radio, RefreshCw, Eye, Edit, Trash2, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Shared UI components import
@@ -14,20 +14,58 @@ import Select from '../../../components/ui/Select';
 import Badge from '../../../components/ui/Badge';
 import Table from '../../../components/ui/Table';
 import SectionDivider from '../../../components/ui/SectionDivider';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 
-function getRelativeTime(isoString) {
-  if (!isoString) return 'Never';
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSecs < 60) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
+const SEED_COUNTERS = [
+  {
+    id: 'CTR-9904',
+    name: 'wwe2',
+    code: 'POS-WWE2',
+    location: 'Main Retail Outlet',
+    assignedStaff: 'Default Cashier',
+    printerType: 'Thermal 80mm ESC/POS',
+    status: 'ONLINE',
+    totalBillsToday: 0,
+    grossSalesToday: 0,
+    lastHeartbeat: new Date().toISOString()
+  },
+  {
+    id: 'CTR-9901',
+    name: 'Main Counter Delhi',
+    code: 'POS-01',
+    location: 'Delhi Central',
+    assignedStaff: 'john_cashier',
+    printerType: 'Thermal 80mm',
+    status: 'ONLINE',
+    totalBillsToday: 42,
+    grossSalesToday: 15480,
+    lastHeartbeat: new Date().toISOString()
+  },
+  {
+    id: 'CTR-9902',
+    name: 'Express Kiosk 1',
+    code: 'POS-02',
+    location: 'Mumbai Sub',
+    assignedStaff: 'sarah_billing',
+    printerType: 'Thermal 58mm',
+    status: 'OFFLINE',
+    totalBillsToday: 18,
+    grossSalesToday: 8706,
+    lastHeartbeat: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 'CTR-9903',
+    name: 'Mobile Checkout A',
+    code: 'POS-03',
+    location: 'Bangalore East',
+    assignedStaff: 'mike_kiosk',
+    printerType: 'Thermal 80mm',
+    status: 'ONLINE',
+    totalBillsToday: 12,
+    grossSalesToday: 4500,
+    lastHeartbeat: new Date().toISOString()
+  }
+];
 
 export default function CounterReportsTable() {
   const navigate = useNavigate();
@@ -37,74 +75,150 @@ export default function CounterReportsTable() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [branchFilter, setBranchFilter] = useState('All');
-  const [syncDaysFilter, setSyncDaysFilter] = useState('All');
+
+  const [selectedCounter, setSelectedCounter] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  const loadCounters = () => {
+    let raw = localStorage.getItem('erp_admin_counters');
+    if (!raw) {
+      const rawLegacy = localStorage.getItem('counters');
+      if (rawLegacy) {
+        raw = rawLegacy;
+        localStorage.setItem('erp_admin_counters', raw);
+      }
+    }
+
+    let data = [];
+    if (raw) {
+      data = JSON.parse(raw);
+    }
+
+    if (!data || data.length === 0) {
+      data = SEED_COUNTERS;
+      localStorage.setItem('erp_admin_counters', JSON.stringify(data));
+    }
+
+    const hasWWE2 = data.some(c => String(c.name).toLowerCase() === 'wwe2' || String(c.code).toLowerCase() === 'pos-wwe2');
+    if (!hasWWE2) {
+      const wwe2Counter = {
+        id: 'CTR-' + Date.now().toString().slice(-4),
+        name: 'wwe2',
+        code: 'POS-WWE2',
+        location: 'Main Retail Outlet',
+        assignedStaff: 'Default Cashier',
+        printerType: 'Thermal 80mm ESC/POS',
+        status: 'ONLINE',
+        totalBillsToday: 0,
+        grossSalesToday: 0,
+        lastHeartbeat: new Date().toISOString()
+      };
+      data = [wwe2Counter, ...data];
+      localStorage.setItem('erp_admin_counters', JSON.stringify(data));
+    }
+
+    setCounters(data);
+  };
 
   useEffect(() => {
-    // Load from erp_admin_counters or counters key
-    const raw = localStorage.getItem('erp_admin_counters') || localStorage.getItem('counters') || '[]';
-    setCounters(JSON.parse(raw));
+    loadCounters();
+
+    const onFocus = () => loadCounters();
+    const onStorage = (e) => {
+      if (e.key === 'erp_admin_counters') {
+        loadCounters();
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
+  const handleToggleStatus = (id) => {
+    const updated = counters.map(c => {
+      if (c.id === id) {
+        const nextStatus = String(c.status).toUpperCase() === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+        return { ...c, status: nextStatus };
+      }
+      return c;
+    });
+    setCounters(updated);
+    localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+    toast.showSuccess('Status Updated', 'Terminal status toggled successfully.');
+  };
+
+  const handleDeleteCounter = (id, name) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Terminal',
+      message: `Are you sure you want to permanently delete POS terminal "${name}"? This action cannot be undone.`,
+      onConfirm: () => {
+        const updated = counters.filter(c => c.id !== id);
+        setCounters(updated);
+        localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+        toast.showSuccess('Deleted', `POS terminal "${name}" has been deleted.`);
+        setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+      }
+    });
+  };
+
   const handleExportCSV = () => {
-    toast.showInfo('Export CSV', 'Coming soon');
+    toast.showInfo('Export CSV', 'CSV Export process started.');
   };
 
   // Computations
-  const totalCounters = counters.length;
-  const onlineCounters = counters.filter(c => c.status === 'Online' || c.status === 'Active').length;
-  const offlineCounters = totalCounters - onlineCounters;
-  
-  const totalLatency = counters.reduce((sum, c) => sum + (Number(c.syncLatency || c.latency || 14) || 0), 0);
-  const avgLatency = totalCounters > 0 ? Math.round(totalLatency / totalCounters) : 0;
+  const totalShiftSales = counters.reduce((sum, c) => sum + (Number(c.grossSalesToday) || 0), 0);
 
   // Filter Categories
-  const uniqueBranches = ['All', ...new Set(counters.map(c => c.branch).filter(Boolean))];
+  const uniqueBranches = ['All', ...new Set(counters.map(c => c.location || c.branch).filter(Boolean))];
 
   // Filtering
   const filtered = counters.filter(c => {
     const matchesSearch = 
       (c.code || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.name || '').toLowerCase().includes(search.toLowerCase());
+      (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.location || '').toLowerCase().includes(search.toLowerCase());
 
-    const isOnline = c.status === 'Online' || c.status === 'Active';
+    const isOnline = String(c.status).toUpperCase() === 'ONLINE';
     const matchesStatus = 
       statusFilter === 'All' || 
       (statusFilter === 'Active' && isOnline) ||
       (statusFilter === 'Inactive' && !isOnline);
 
-    const matchesBranch = branchFilter === 'All' || c.branch === branchFilter;
-
-    // Last Sync filter helper
-    if (syncDaysFilter !== 'All') {
-      if (!c.lastHeartbeat && !c.lastSync) return false;
-      const syncTime = new Date(c.lastHeartbeat || c.lastSync).getTime();
-      const diffHrs = (Date.now() - syncTime) / 3600000;
-      if (syncDaysFilter === '1h' && diffHrs > 1) return false;
-      if (syncDaysFilter === '24h' && diffHrs > 24) return false;
-    }
+    const matchesBranch = branchFilter === 'All' || (c.location || c.branch) === branchFilter;
 
     return matchesSearch && matchesStatus && matchesBranch;
   });
 
   // Recharts line chart data
   const chartData = [
-    { name: 'Mon', syncs: 120 + (totalCounters * 5) },
-    { name: 'Tue', syncs: 180 + (totalCounters * 7) },
-    { name: 'Wed', syncs: 150 + (totalCounters * 4) },
-    { name: 'Thu', syncs: 240 + (totalCounters * 8) },
-    { name: 'Fri', syncs: 280 + (totalCounters * 10) },
-    { name: 'Sat', syncs: 140 + (totalCounters * 6) },
-    { name: 'Sun', syncs: 95 + (totalCounters * 3) }
+    { name: 'Mon', syncs: 120 + (counters.length * 5) },
+    { name: 'Tue', syncs: 180 + (counters.length * 7) },
+    { name: 'Wed', syncs: 150 + (counters.length * 4) },
+    { name: 'Thu', syncs: 240 + (counters.length * 8) },
+    { name: 'Fri', syncs: 280 + (counters.length * 10) },
+    { name: 'Sat', syncs: 140 + (counters.length * 6) },
+    { name: 'Sun', syncs: 95 + (counters.length * 3) }
   ];
 
   const headers = [
-    { label: 'Counter Code' },
-    { label: 'Name' },
-    { label: 'Branch' },
+    { label: 'Counter Name' },
+    { label: 'Code' },
+    { label: 'Location' },
+    { label: 'Assigned Staff' },
+    { label: 'Hardware/Printer' },
     { label: 'Status', style: { textAlign: 'center' } },
-    { label: 'Last Sync' },
-    { label: 'Sync Latency', style: { textAlign: 'right' } },
-    { label: 'Transactions Today', style: { textAlign: 'right' } },
     { label: 'Actions', style: { textAlign: 'right' } }
   ];
 
@@ -117,18 +231,23 @@ export default function CounterReportsTable() {
         title="Counter Reports"
         subtitle="Monitor terminal sync status and activity across all outlets."
         extra={
-          <Button variant="secondary" onClick={handleExportCSV}>
-            <DownloadIcon /> Export CSV
-          </Button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="secondary" onClick={handleExportCSV}>
+              <DownloadIcon /> Export CSV
+            </Button>
+            <Button variant="purple" onClick={() => navigate('/admin/counters/new')}>
+              Add New Counter
+            </Button>
+          </div>
         }
       />
 
       {/* Metrics Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <StatCard label="Total Counters" value={totalCounters} icon={Monitor} color="#4f46e5" />
-        <StatCard label="Online Now" value={onlineCounters} icon={Activity} color="#10b981" />
-        <StatCard label="Offline/Inactive" value={offlineCounters} icon={Monitor} color="#dc2626" />
-        <StatCard label="Avg Sync Latency" value={`${avgLatency}ms`} icon={Radio} color="#0891b2" />
+        <StatCard label="Total Terminals" value={counters.length} icon={Monitor} color="#4f46e5" />
+        <StatCard label="Online Terminals" value={counters.filter(c => c.status === 'ONLINE').length} icon={Activity} color="#10b981" />
+        <StatCard label="Active Sessions" value={counters.filter(c => c.assignedStaff && c.assignedStaff !== 'Staff' && c.assignedStaff.trim() !== '').length} icon={Radio} color="#0891b2" />
+        <StatCard label="Total Shift Sales" value={`₹${totalShiftSales.toLocaleString('en-IN')}`} icon={Monitor} color="#dc2626" />
       </div>
 
       {/* Filters Card */}
@@ -136,7 +255,7 @@ export default function CounterReportsTable() {
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '220px' }}>
           <Input 
             type="text" 
-            placeholder="Search code or counter name..." 
+            placeholder="Search code, name, or location..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', paddingLeft: '32px' }}
@@ -151,24 +270,18 @@ export default function CounterReportsTable() {
         </Select>
 
         <Select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}>
-          <option value="All">All Branches</option>
+          <option value="All">All Locations</option>
           {uniqueBranches.filter(b => b !== 'All').map(b => (
             <option key={b} value={b}>{b}</option>
           ))}
-        </Select>
-
-        <Select value={syncDaysFilter} onChange={e => setSyncDaysFilter(e.target.value)}>
-          <option value="All">Last Sync: All</option>
-          <option value="1h">Synced &lt; 1 hour ago</option>
-          <option value="24h">Synced &lt; 24 hours ago</option>
         </Select>
       </Card>
 
       {/* Table Section */}
       <Table headers={headers}>
-        {filtered.length === 0 ? (
+        {counters.length === 0 ? (
           <tr>
-            <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center' }}>
+            <td colSpan={7} style={{ padding: '40px 16px', textAlign: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>No counters registered yet</span>
                 <Button variant="purple" onClick={() => navigate('/admin/counters/new')}>
@@ -178,34 +291,68 @@ export default function CounterReportsTable() {
             </td>
           </tr>
         ) : (
-          filtered.map((c, idx) => {
-            const isOnline = c.status === 'Online' || c.status === 'Active';
+          counters.map((c, idx) => {
+            const isOnline = String(c.status).toUpperCase() === 'ONLINE';
+
+            const matchesSearch = !search ||
+              (c.code || '').toLowerCase().includes(search.toLowerCase()) ||
+              (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+              (c.location || '').toLowerCase().includes(search.toLowerCase());
+
+            const matchesStatus = 
+              statusFilter === 'All' || 
+              (statusFilter === 'Active' && isOnline) ||
+              (statusFilter === 'Inactive' && !isOnline);
+
+            const matchesBranch = branchFilter === 'All' || (c.location || c.branch) === branchFilter;
+            
+            const isVisible = matchesSearch && matchesStatus && matchesBranch;
+
             return (
-              <tr key={c.id || idx} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
-                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>{c.code || 'N/A'}</td>
-                <td style={{ padding: '14px 16px' }}>{c.name || 'Unnamed Counter'}</td>
-                <td style={{ padding: '14px 16px', fontWeight: 500 }}>{c.branch || 'General'}</td>
+              <tr 
+                key={c.id || idx} 
+                style={{ 
+                  borderBottom: '1px solid #f3f4f6', 
+                  fontSize: '0.8rem', 
+                  color: '#374151',
+                  display: isVisible ? 'table-row' : 'none'
+                }}
+              >
+                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>{c.name || 'Unnamed Counter'}</td>
+                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{c.code || 'N/A'}</td>
+                <td style={{ padding: '14px 16px' }}>{c.location || 'Main Store'}</td>
+                <td style={{ padding: '14px 16px', fontWeight: 500 }}>{c.assignedStaff || 'Staff'}</td>
+                <td style={{ padding: '14px 16px' }}>{c.printerType || 'Thermal 80mm'}</td>
                 <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                   <Badge variant={isOnline ? 'success' : 'danger'}>
-                    {isOnline ? 'Active' : 'Offline'}
+                    {isOnline ? 'ONLINE' : 'OFFLINE'}
                   </Badge>
                 </td>
-                <td style={{ padding: '14px 16px', color: '#6b7280' }}>
-                  {getRelativeTime(c.lastHeartbeat || c.lastSync)}
-                </td>
-                <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600 }}>
-                  {c.syncLatency || c.latency || 14}ms
-                </td>
-                <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600 }}>
-                  {c.totalBillsToday || 0}
-                </td>
                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                  <div style={{ display: 'inline-flex', gap: '6px' }}>
-                    <button style={{ padding: '4px', background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}>
+                  <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                    <Button
+                      variant={isOnline ? 'secondary' : 'primary'}
+                      onClick={() => handleToggleStatus(c.id)}
+                      style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                    >
+                      Toggle Status
+                    </Button>
+                    <button 
+                      onClick={() => {
+                        setSelectedCounter(c);
+                        setIsDetailOpen(true);
+                      }}
+                      style={{ padding: '4px', background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}
+                      title="View Details"
+                    >
                       <Eye size={14} />
                     </button>
-                    <button style={{ padding: '4px', background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}>
-                      <Edit size={14} />
+                    <button 
+                      onClick={() => handleDeleteCounter(c.id, c.name)}
+                      style={{ padding: '4px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                      title="Delete Terminal"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </td>
@@ -230,6 +377,104 @@ export default function CounterReportsTable() {
           </ResponsiveContainer>
         </div>
       </Card>
+
+      {/* View Details Modal */}
+      {isDetailOpen && selectedCounter && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fade-in 0.2s ease-out'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '450px',
+            maxWidth: '90%',
+            padding: '24px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={() => setIsDetailOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Monitor size={18} style={{ color: '#7c3aed' }} /> Terminal Details
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Name</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>{selectedCounter.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Code</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>{selectedCounter.code}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Location</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 600 }}>{selectedCounter.location}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Assigned Staff</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 600 }}>{selectedCounter.assignedStaff}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Printer Setup</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 600 }}>{selectedCounter.printerType}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Status</span>
+                <Badge variant={String(selectedCounter.status).toUpperCase() === 'ONLINE' ? 'success' : 'danger'}>
+                  {selectedCounter.status}
+                </Badge>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Bills Processed Today</span>
+                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>{selectedCounter.totalBillsToday}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Gross Sales Today</span>
+                <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>₹{Number(selectedCounter.grossSalesToday || 0).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button onClick={() => setIsDetailOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+      />
 
     </div>
   );

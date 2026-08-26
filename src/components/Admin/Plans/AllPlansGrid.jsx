@@ -7,6 +7,20 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 
 const SEED_PLANS = [
   {
+    id: "PLAN-WWE-899",
+    title: "WWE Pro Plan",
+    badge: "Best Value",
+    monthlyPrice: 899,
+    yearlyPrice: 8999,
+    terminalLimit: 3,
+    staffLimit: 5,
+    invoiceLimit: 1000,
+    features: { sync: true, gst: true, khata: true, barcode: false, branding: true, support: true },
+    status: "ACTIVE",
+    activeSubscribers: 0,
+    description: "WWE Pro SaaS Subscription Tier"
+  },
+  {
     id: "PLAN-BASIC",
     title: "Silver Starter",
     badge: "Basic",
@@ -16,7 +30,7 @@ const SEED_PLANS = [
     staffLimit: 2,
     invoiceLimit: 1000,
     features: { sync: true, gst: true, khata: false, barcode: false, branding: false, support: false },
-    status: "Active",
+    status: "ACTIVE",
     activeSubscribers: 5,
     description: "Ideal for small standalone retail counters & local vendors."
   },
@@ -30,7 +44,7 @@ const SEED_PLANS = [
     staffLimit: 5,
     invoiceLimit: 5000,
     features: { sync: true, gst: true, khata: true, barcode: true, branding: false, support: false },
-    status: "Active",
+    status: "ACTIVE",
     activeSubscribers: 14,
     description: "Best for growing retail networks, pharmacies & apparel stores."
   },
@@ -44,7 +58,7 @@ const SEED_PLANS = [
     staffLimit: 20,
     invoiceLimit: 99999,
     features: { sync: true, gst: true, khata: true, barcode: true, branding: true, support: true },
-    status: "Active",
+    status: "ACTIVE",
     activeSubscribers: 3,
     description: "Tailored for large ERP merchants with intense billing volumes."
   }
@@ -60,13 +74,49 @@ export default function AllPlansGrid() {
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null, title: '' });
 
   useEffect(() => {
-    const raw = localStorage.getItem('erp_admin_plans');
-    if (!raw || JSON.parse(raw).length === 0) {
-      localStorage.setItem('erp_admin_plans', JSON.stringify(SEED_PLANS));
-      setPlans(SEED_PLANS);
-    } else {
-      setPlans(JSON.parse(raw));
+    let raw = localStorage.getItem('erp_admin_plans');
+    let data = [];
+    if (raw) {
+      data = JSON.parse(raw);
     }
+
+    if (!data || data.length === 0) {
+      data = SEED_PLANS;
+      localStorage.setItem('erp_admin_plans', JSON.stringify(data));
+    } else {
+      const wwePlanCode = 'PLAN-WWE-899';
+      const hasWWEPlan = data.some(p => 
+        Number(p.monthlyPrice) === 899 || 
+        String(p.id).toUpperCase() === wwePlanCode || 
+        String(p.code).toUpperCase() === wwePlanCode
+      );
+
+      if (!hasWWEPlan) {
+        const wwePlan = {
+          id: "PLAN-WWE-899",
+          title: "WWE Pro Plan",
+          badge: "Best Value",
+          monthlyPrice: 899,
+          yearlyPrice: 8999,
+          terminalLimit: 3,
+          staffLimit: 5,
+          invoiceLimit: 1000,
+          features: { sync: true, gst: true, khata: true, barcode: false, branding: true, support: true },
+          status: "ACTIVE",
+          activeSubscribers: 0,
+          description: "WWE Pro SaaS Subscription Tier"
+        };
+        data = [wwePlan, ...data];
+        localStorage.setItem('erp_admin_plans', JSON.stringify(data));
+      }
+    }
+
+    const standardized = data.map(p => ({
+      ...p,
+      status: String(p.status).toUpperCase() === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'
+    }));
+
+    setPlans(standardized);
   }, []);
 
   const savePlans = (updated) => {
@@ -75,22 +125,21 @@ export default function AllPlansGrid() {
   };
 
   // KPI Calculations
-  const activeCount = plans.filter(p => p.status === 'Active').length;
+  const totalPlans = plans.length;
+  const activeCount = plans.filter(p => p.status === 'ACTIVE').length;
   const totalSubscribers = plans.reduce((sum, p) => sum + (Number(p.activeSubscribers) || 0), 0);
   
-  // Find top plan by subscriber count
   const topPlanObj = plans.reduce((top, p) => ((Number(p.activeSubscribers) || 0) > (Number(top?.activeSubscribers) || 0) ? p : top), plans[0]);
   const topPlanName = topPlanObj ? topPlanObj.title : 'None';
 
-  // Estimated Monthly Recurring Revenue (MRR)
-  const estimatedMRR = plans.reduce((sum, p) => {
-    const mPrice = Number(p.monthlyPrice ?? p.price) || 0;
-    return sum + ((Number(p.activeSubscribers) || 0) * mPrice);
-  }, 0);
+  // Total Potential MRR: Sum of monthlyPrice of active plans
+  const estimatedMRR = plans
+    .filter(p => p.status === 'ACTIVE')
+    .reduce((sum, p) => sum + (Number(p.monthlyPrice) || 0), 0);
 
   // Toggle Plan Status
   const handleToggleStatus = (id, title, currentStatus) => {
-    const nextStatus = currentStatus === 'Active' ? 'Paused' : 'Active';
+    const nextStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updated = plans.map(p => (p.id === id ? { ...p, status: nextStatus } : p));
     savePlans(updated);
     logActivity({
@@ -141,7 +190,7 @@ export default function AllPlansGrid() {
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Active Packages</span>
-            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: '4px 0' }}>{activeCount} / {plans.length}</h4>
+            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: '4px 0' }}>{activeCount} / {totalPlans}</h4>
           </div>
           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(124, 58, 237, 0.08)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Layers size={18} />
@@ -170,7 +219,7 @@ export default function AllPlansGrid() {
 
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Estimated MRR</span>
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Total Potential MRR</span>
             <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#dc2626', margin: '4px 0' }}>₹{estimatedMRR.toLocaleString('en-IN')}</h4>
           </div>
           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(220, 38, 38, 0.08)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -285,8 +334,9 @@ export default function AllPlansGrid() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
           {filtered.map(plan => {
             const isYearly = billingCycle === 'YEARLY';
-            const rawPrice = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
-            const price = rawPrice ?? (isYearly ? ((plan.price || 0) * 10) : (plan.price || 0));
+            const price = isYearly 
+              ? (Number(plan.yearlyPrice) || (Number(plan.monthlyPrice || plan.price || 0) * 10)) 
+              : (Number(plan.monthlyPrice || plan.price || 0));
             const cycleText = isYearly ? '/ year' : '/ month';
 
             // Feature list mapping (support standard array or mapped features object)
@@ -314,8 +364,7 @@ export default function AllPlansGrid() {
                   flexDirection: 'column',
                   gap: '20px',
                   padding: '24px',
-                  position: 'relative',
-                  opacity: plan.status === 'Active' ? 1 : 0.7,
+                  opacity: String(plan.status).toUpperCase() === 'ACTIVE' ? 1 : 0.7,
                   transition: 'opacity 0.2s'
                 }}
               >
@@ -347,8 +396,8 @@ export default function AllPlansGrid() {
                     fontWeight: 700,
                     padding: '3px 8px',
                     borderRadius: '99px',
-                    background: plan.status === 'Active' ? '#d1fae5' : '#fee2e2',
-                    color: plan.status === 'Active' ? '#065f46' : '#991b1b',
+                    background: String(plan.status).toUpperCase() === 'ACTIVE' ? '#d1fae5' : '#fee2e2',
+                    color: String(plan.status).toUpperCase() === 'ACTIVE' ? '#065f46' : '#991b1b',
                     textTransform: 'uppercase'
                   }}>
                     {plan.status}
@@ -408,7 +457,7 @@ export default function AllPlansGrid() {
                     style={{
                       flex: 1,
                       padding: '8px 10px',
-                      background: plan.status === 'Active' ? '#ffffff' : '#fafafa',
+                      background: String(plan.status).toUpperCase() === 'ACTIVE' ? '#ffffff' : '#fafafa',
                       border: '1px solid #d1d5db',
                       borderRadius: '8px',
                       color: '#374151',
@@ -417,7 +466,7 @@ export default function AllPlansGrid() {
                       cursor: 'pointer'
                     }}
                   >
-                    {plan.status === 'Active' ? 'Pause Plan' : 'Activate'}
+                    {String(plan.status).toUpperCase() === 'ACTIVE' ? 'Pause Plan' : 'Activate'}
                   </button>
 
                   <button

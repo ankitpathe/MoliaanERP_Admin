@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, Search, Bell, Sun, Moon, Plus, RefreshCw, Settings, Maximize2, Users, Receipt, Database, Calendar, Monitor, Activity, TrendingUp, ChevronDown } from 'lucide-react';
-import AdminProfile from './AdminProfile';
+import { 
+  Menu, Search, Bell, Sun, Moon, RefreshCw, Settings, 
+  Maximize2, Users, Receipt, Database, Calendar, Monitor, 
+  Activity, ChevronDown, LogOut
+} from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 
 export default function AdminHeader({ 
@@ -16,11 +19,19 @@ export default function AdminHeader({
   const location = useLocation();
   const toast = useToast();
   
+  const searchInputRef = useRef(null);
+
+  const [branch, setBranch] = useState('🏬 Main Outlet (Chhindwara)');
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [routeMenuOpen, setRouteMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('erp_theme') === 'dark' || 
+           document.documentElement.classList.contains('dark');
+  });
 
   // Notifications states
   const [notifications, setNotifications] = useState([]);
@@ -29,17 +40,11 @@ export default function AdminHeader({
   // Search states
   const [searchResults, setSearchResults] = useState([]);
 
+  // Telemetry online counters count
+  const [onlineTelemetry, setOnlineTelemetry] = useState({ online: 2, total: 4 });
+
   // Snapshot states
-  const [snapshot, setSnapshot] = useState({ volume: 24186, activeCounters: 0, pendingRequests: 2 });
-
-  const isDashboard = location.pathname === '/admin/dashboard';
-
-  // Left breadcrumb path
-  const getBreadcrumb = () => {
-    if (location.pathname === '/admin/dashboard') return 'Admin / Dashboard';
-    const cleanTitle = title.replace('Admin / ', '').replace('Admin Panel / ', '');
-    return `Admin / ${cleanTitle}`;
-  };
+  const [snapshot, setSnapshot] = useState({ volume: 24186, activeCounters: 2, pendingRequests: 2 });
 
   // Format Date (e.g. "Mon, 25 Aug 2026")
   const getFormattedDate = () => {
@@ -49,21 +54,42 @@ export default function AdminHeader({
     return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  // Load snapshot stats
+  const getShiftIndicator = () => {
+    const hrs = new Date().getHours();
+    if (hrs >= 6 && hrs < 14) return 'Shift A (Morning)';
+    if (hrs >= 14 && hrs < 22) return 'Shift B (Evening)';
+    return 'Shift C (Night)';
+  };
+
+  // Keyboard shortcut Ctrl + K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Load telemetry stats
   useEffect(() => {
     const loadStats = () => {
       const sales = JSON.parse(localStorage.getItem('erp_sales') || '[]');
       const volume = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0) || 24186;
       
-      const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || localStorage.getItem('counters') || '[]');
-      const activeCounters = counters.filter(c => c.status === 'Online' || c.status === 'Active').length;
+      const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
+      const activeCounters = counters.filter(c => String(c.status).toUpperCase() === 'ONLINE' || String(c.status).toUpperCase() === 'ACTIVE').length;
+      const totalCounters = counters.length || 4;
 
+      setOnlineTelemetry({ online: activeCounters, total: totalCounters });
       setSnapshot({ volume, activeCounters, pendingRequests: 2 });
     };
     loadStats();
   }, [location.pathname, notificationsOpen]);
 
-  // Load live notifications from activity logs
+  // Load live notifications
   useEffect(() => {
     const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
     const mapped = logs.slice(0, 5).map((log, idx) => ({
@@ -85,7 +111,7 @@ export default function AdminHeader({
     }
   }, [notificationsOpen]);
 
-  // Basic Search dropdown filter
+  // Search live filtering
   useEffect(() => {
     if (!searchValue.trim()) {
       setSearchResults([]);
@@ -96,37 +122,52 @@ export default function AdminHeader({
     // Load Users
     const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
     const matchedUsers = users
-      .filter(u => (u.name || '').toLowerCase().includes(query))
-      .map(u => ({ id: u.id, name: u.name, type: 'User', path: `/admin/users` }));
+      .filter(u => (u.ownerName || u.name || '').toLowerCase().includes(query) || (u.storeName || '').toLowerCase().includes(query))
+      .map(u => ({ id: u.id, name: `${u.storeName || u.name} (${u.ownerName || 'Merchant'})`, type: 'Merchant / User', path: `/admin/users` }));
 
     // Load Counters
-    const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || localStorage.getItem('counters') || '[]');
+    const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
     const matchedCounters = counters
       .filter(c => (c.name || '').toLowerCase().includes(query) || (c.code || '').toLowerCase().includes(query))
-      .map(c => ({ id: c.id || c.code, name: `${c.code} - ${c.name}`, type: 'Counter', path: `/admin/counters/reports` }));
+      .map(c => ({ id: c.id || c.code, name: `${c.code} - ${c.name}`, type: 'POS Counter', path: `/admin/counters/reports` }));
 
-    // Load Advertisements
-    const ads = JSON.parse(localStorage.getItem('erp_advertisements') || '[]');
-    const matchedAds = ads
-      .filter(a => (a.title || '').toLowerCase().includes(query))
-      .map(a => ({ id: a.id, name: a.title, type: 'Campaign', path: `/admin/advertisements` }));
+    // Load Subscriptions / Licenses
+    const subs = JSON.parse(localStorage.getItem('erp_admin_subscriptions') || '[]');
+    const matchedSubs = subs
+      .filter(s => (s.storeName || '').toLowerCase().includes(query) || (s.planName || '').toLowerCase().includes(query))
+      .map(s => ({ id: s.id, name: `${s.storeName} - ${s.planName}`, type: 'Subscription', path: `/admin/plans/reports` }));
 
-    setSearchResults([...matchedUsers, ...matchedCounters, ...matchedAds].slice(0, 6));
+    setSearchResults([...matchedUsers, ...matchedCounters, ...matchedSubs].slice(0, 8));
   }, [searchValue]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  const isLight = theme === 'light';
-
-  useEffect(() => {
-    if (theme === 'dark') {
+    const nextTheme = !isDarkMode;
+    setIsDarkMode(nextTheme);
+    if (nextTheme) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('erp_theme', 'dark');
+      if (typeof setTheme === 'function') setTheme('dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('erp_theme', 'light');
+      if (typeof setTheme === 'function') setTheme('light');
     }
-  }, [theme]);
+  };
+
+  const isLight = !isDarkMode;
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('erp_theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDarkMode(true);
+      if (typeof setTheme === 'function') setTheme('dark');
+    } else if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+      setIsDarkMode(false);
+      if (typeof setTheme === 'function') setTheme('light');
+    }
+  }, [setTheme]);
 
   const unreadCount = hasUnread ? notifications.filter(n => n.unread).length : 0;
 
@@ -139,7 +180,7 @@ export default function AdminHeader({
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen()
         .then(() => toast.showSuccess('Fullscreen', 'Entered fullscreen mode.'))
-        .catch(err => toast.showError('Fullscreen Error', 'Unable to toggle fullscreen.'));
+        .catch(() => toast.showError('Fullscreen Error', 'Unable to toggle fullscreen.'));
     } else {
       document.exitFullscreen()
         .then(() => toast.showInfo('Fullscreen', 'Exited fullscreen mode.'));
@@ -148,7 +189,7 @@ export default function AdminHeader({
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    toast.showInfo('Syncing', 'Synchronizing terminal data grids...');
+    toast.showInfo('Syncing', 'Telemetry refreshed');
     setTimeout(() => {
       setIsRefreshing(false);
       toast.showSuccess('Synced', 'Dashboard stats updated successfully.');
@@ -161,6 +202,43 @@ export default function AdminHeader({
     navigate(result.path);
   };
 
+  // Export JSON Database Backup
+  const handleExportBackup = () => {
+    const backupData = {
+      erp_users: JSON.parse(localStorage.getItem('erp_users') || '[]'),
+      erp_admin_counters: JSON.parse(localStorage.getItem('erp_admin_counters') || '[]'),
+      erp_admin_plans: JSON.parse(localStorage.getItem('erp_admin_plans') || '[]'),
+      erp_admin_subscriptions: JSON.parse(localStorage.getItem('erp_admin_subscriptions') || '[]'),
+      erp_activity_logs: JSON.parse(localStorage.getItem('erp_activity_logs') || '[]')
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Moliaan_ERP_Backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.showSuccess('Backup Successful', 'Moliaan ERP JSON database backup exported.');
+    setProfileDropdownOpen(false);
+  };
+
+  const handleLogout = () => {
+    setProfileDropdownOpen(false);
+    localStorage.removeItem('erp_user_session');
+    toast.showInfo('Logged Out', 'Successfully logged out of the Administrator session.');
+    navigate('/');
+  };
+
+  const storedSession = JSON.parse(localStorage.getItem('erp_user_session') || '{}');
+  const adminInfo = {
+    name: storedSession.name || 'Administrator',
+    role: storedSession.role || 'ADMIN',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=128&h=128&auto=format&fit=crop',
+  };
+
   return (
     <header 
       style={{
@@ -170,7 +248,6 @@ export default function AdminHeader({
         padding: '12px 24px',
         background: '#ffffff',
         borderBottom: '1px solid #f3f4f6',
-        borderRadius: '0px',
         position: 'sticky',
         top: 0,
         zIndex: 100,
@@ -180,8 +257,8 @@ export default function AdminHeader({
         boxSizing: 'border-box'
       }}
     >
-      {/* Left side: clean breadcrumb only */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      {/* LEFT SECTION (Branch Switcher & Route Path) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
@@ -200,30 +277,184 @@ export default function AdminHeader({
             <Menu size={16} />
           </button>
         )}
-        
-        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563', letterSpacing: '-0.1px' }}>
-          {getBreadcrumb()}
-        </span>
+
+        {/* Active Branch Selector Custom Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => {
+              setBranchMenuOpen(!branchMenuOpen);
+              setRouteMenuOpen(false);
+            }}
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: '#374151',
+              background: '#f3f4f6',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              outline: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <span>{branch}</span>
+            <ChevronDown size={12} style={{ color: '#6b7280' }} />
+          </button>
+
+          {branchMenuOpen && (
+            <>
+              <div 
+                onClick={() => setBranchMenuOpen(false)}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }}
+              />
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '8px',
+                  width: '256px',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(4px)',
+                  borderRadius: '12px',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                  border: '1px solid #e2e8f0',
+                  zIndex: 9999,
+                  padding: '8px 0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                {[
+                  '🏬 Main Outlet (Chhindwara)',
+                  '🏬 Branch 02',
+                  '🌐 All Stores (Combined)'
+                ].map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setBranch(option);
+                      localStorage.setItem('erp_active_outlet', option);
+                      toast.showSuccess('Branch Switched', `Active branch switched to ${option}.`);
+                      setBranchMenuOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 16px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#374151',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Compact Route Breadcrumb with quick switch chevron */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>
+            Counters &gt; Reports
+          </span>
+          <button
+            onClick={() => {
+              setRouteMenuOpen(!routeMenuOpen);
+              setBranchMenuOpen(false);
+            }}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+          >
+            <ChevronDown size={14} style={{ color: '#9ca3af', transform: routeMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          </button>
+
+          {routeMenuOpen && (
+            <>
+              <div onClick={() => setRouteMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} />
+              <div style={{
+                position: 'absolute',
+                top: '24px',
+                left: 0,
+                width: '180px',
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                padding: '4px',
+                zIndex: 999,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}>
+                {[
+                  { name: 'Dashboard', path: '/admin/dashboard' },
+                  { name: 'Terminal Reports', path: '/admin/counters/reports' },
+                  { name: 'SaaS Plans Pricing', path: '/admin/plans' },
+                  { name: 'Subscription Requests', path: '/admin/plans/requests' },
+                  { name: 'Merchants Registry', path: '/admin/users' },
+                  { name: 'Data Sync Diagnostic', path: '/admin/data-sync/report' }
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setRouteMenuOpen(false);
+                      navigate(item.path);
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '6px 8px',
+                      fontSize: '0.725rem',
+                      fontWeight: 600,
+                      color: '#374151',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Center Search Input */}
+      {/* CENTER SECTION (Universal Omnisearch) */}
       <div style={{ 
         flex: 1, 
-        maxWidth: '320px', 
+        maxWidth: '360px', 
         position: 'relative',
         display: 'flex',
         alignItems: 'center'
       }}>
         <input 
+          ref={searchInputRef}
           type="text" 
-          placeholder="Search counters, users..." 
+          placeholder="Search counters, merchants, licenses..." 
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
           style={{
             width: '100%',
-            padding: '8px 12px 8px 36px',
+            padding: '8px 60px 8px 36px',
             fontSize: '0.8rem',
             borderRadius: '99px',
             border: searchFocused ? '1px solid #7c3aed' : '1px solid #e5e7eb',
@@ -242,8 +473,21 @@ export default function AdminHeader({
             color: '#9ca3af' 
           }} 
         />
+        <span style={{
+          position: 'absolute',
+          right: '12px',
+          background: '#e5e7eb',
+          color: '#4b5563',
+          fontSize: '0.625rem',
+          fontWeight: 700,
+          padding: '2px 6px',
+          borderRadius: '4px',
+          pointerEvents: 'none'
+        }}>
+          Ctrl + K
+        </span>
 
-        {/* Search Dropdown Panel */}
+        {/* Floating Search Results Modal */}
         {searchFocused && searchValue.trim() && (
           <div style={{
             position: 'absolute',
@@ -256,7 +500,7 @@ export default function AdminHeader({
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             padding: '6px',
             zIndex: 1000,
-            maxHeight: '260px',
+            maxHeight: '280px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
@@ -299,30 +543,72 @@ export default function AdminHeader({
         )}
       </div>
 
-      {/* Right Actions: Live Status, Quick Add, Refresh, Bell, Gear, Theme, Date, Profile */}
+      {/* RIGHT SECTION (Real-Time Ops & Actions) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         
-        {/* Live status pill */}
+        {/* Live Telemetry Pill */}
+        <button
+          onClick={() => navigate('/admin/counters/reports')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            borderRadius: '99px',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            background: '#d1fae5',
+            color: '#065f46',
+            border: '1px solid #a7f3d0',
+            cursor: 'pointer'
+          }}
+        >
+          <span style={{
+            display: 'inline-block',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: '#10b981',
+            animation: 'pulse 1.5s infinite'
+          }} />
+          {onlineTelemetry.online}/{onlineTelemetry.total} Counters Online
+        </button>
+
+        {/* Sync Status Pill */}
+        <button
+          onClick={() => navigate('/admin/data-sync/report')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 10px',
+            borderRadius: '99px',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            background: '#eff6ff',
+            color: '#1d4ed8',
+            border: '1px solid #bfdbfe',
+            cursor: 'pointer'
+          }}
+        >
+          ⚡ Realtime Sync OK
+        </button>
+
+        {/* Date & Shift Badge */}
         <span style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '5px',
+          gap: '6px',
+          background: '#f3f4f6',
           padding: '4px 10px',
-          borderRadius: '99px',
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          background: '#d1fae5',
-          color: '#065f46',
-          border: '1px solid #a7f3d0'
+          borderRadius: '8px',
+          fontSize: '0.725rem',
+          fontWeight: 600,
+          color: '#4b5563'
         }}>
-          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981' }} />
-          Live
-        </span>
-
-        {/* Dynamic Date Label */}
-        <span style={{ fontSize: '0.725rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Calendar size={13} style={{ color: '#9ca3af' }} />
-          {getFormattedDate()}
+          <span>{getFormattedDate()}</span>
+          <span style={{ color: '#9ca3af' }}>|</span>
+          <span style={{ color: '#4f46e5', fontWeight: 700 }}>{getShiftIndicator()}</span>
         </span>
 
         {/* Sync/Refresh */}
@@ -376,9 +662,8 @@ export default function AdminHeader({
           <button
             onClick={() => {
               setNotificationsOpen(!notificationsOpen);
-              setQuickAddOpen(false);
               setProfileDropdownOpen(false);
-              setHasUnread(false); // remove red dot once opened
+              setHasUnread(false);
             }}
             style={{
               width: '32px',
@@ -411,7 +696,7 @@ export default function AdminHeader({
             )}
           </button>
 
-          {/* Notifications Dropdown Panel (Today's Summary + Recent Activity) */}
+          {/* Notifications Dropdown Panel */}
           {notificationsOpen && (
             <>
               <div 
@@ -433,7 +718,6 @@ export default function AdminHeader({
                 flexDirection: 'column',
                 gap: '12px'
               }}>
-                {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1f2937' }}>Notifications</span>
                   {unreadCount > 0 && (
@@ -446,7 +730,7 @@ export default function AdminHeader({
                   )}
                 </div>
 
-                {/* Today's Summary Stat Rows */}
+                {/* Today's Summary */}
                 <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Today's Summary
@@ -459,7 +743,7 @@ export default function AdminHeader({
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#334155', fontWeight: 600 }}>
                     <Monitor size={13} style={{ color: '#10b981' }} />
-                    <span>{snapshot.activeCounters} Active Counters online</span>
+                    <span>{onlineTelemetry.online} Active Counters online</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#334155', fontWeight: 600 }}>
@@ -470,8 +754,7 @@ export default function AdminHeader({
 
                 <div style={{ height: '1px', background: '#f3f4f6', margin: '4px 0' }} />
 
-                {/* Recent Activity */}
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '-4px' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Recent Activity
                 </span>
 
@@ -501,7 +784,6 @@ export default function AdminHeader({
                   ))}
                 </div>
 
-                {/* Dropdown footer link */}
                 <button
                   onClick={() => { setNotificationsOpen(false); navigate('/admin/activity-logs'); }}
                   style={{
@@ -550,48 +832,181 @@ export default function AdminHeader({
           <Settings size={15} />
         </button>
 
-        {/* Custom Toggle Switch for Theme Selection */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button
-            onClick={toggleTheme}
+
+
+        {/* Admin Avatar Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
             style={{
-              width: '42px',
-              height: '22px',
-              borderRadius: '99px',
-              background: isLight ? '#e2e8f0' : '#7c7a6e',
-              border: 'none',
-              cursor: 'pointer',
-              position: 'relative',
-              padding: 0,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingLeft: '3px',
-              paddingRight: '3px',
-              transition: 'background-color 0.2s ease'
+              gap: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'transparent',
+              textAlign: 'left'
             }}
           >
-            <Sun size={10} style={{ color: isLight ? '#7c7a6e' : '#cbd5e1', zIndex: 1 }} />
-            <Moon size={10} style={{ color: isLight ? '#cbd5e1' : '#ffffff', zIndex: 1 }} />
-            <div style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              background: '#ffffff',
-              position: 'absolute',
-              top: '3px',
-              left: isLight ? '3px' : '23px',
-              transition: 'left 0.2s ease',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
-            }} />
+            <img 
+              src={adminInfo.avatar} 
+              alt={adminInfo.name} 
+              style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} 
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: '70px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1f2937', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                {adminInfo.name}
+                <ChevronDown size={12} style={{ color: '#9ca3af', transform: profileDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '-2px', fontWeight: 600 }}>
+                {adminInfo.role}
+              </span>
+            </div>
           </button>
+
+          {profileDropdownOpen && (
+            <>
+              <div 
+                onClick={() => setProfileDropdownOpen(false)} 
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+              />
+              <div 
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 8px)',
+                  width: '210px',
+                  padding: '12px 8px 8px 8px',
+                  zIndex: 999,
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb',
+                  background: '#ffffff',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}
+              >
+                <div style={{ padding: '4px 8px 10px 8px', borderBottom: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>
+                    Welcome Admin,
+                  </span>
+                  <span style={{ fontSize: '0.725rem', color: '#6b7280', fontWeight: 500 }}>
+                    {adminInfo.name}
+                  </span>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    navigate('/admin/users');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#374151',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    width: '100%',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Users size={14} style={{ color: '#4b5563' }} />
+                  Merchant Profiles
+                </button>
+
+                <button 
+                  onClick={handleExportBackup}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#0891b2',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    width: '100%',
+                    fontWeight: 700
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ecfeff'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Database size={14} style={{ color: '#0891b2' }} />
+                  Database JSON Backup
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    navigate('/admin/master-data');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#374151',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    width: '100%',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Settings size={14} style={{ color: '#4b5563' }} />
+                  Settings
+                </button>
+
+                <button 
+                  onClick={handleLogout}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ef4444',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    width: '100%',
+                    fontWeight: 600,
+                    borderTop: '1px solid #f3f4f6',
+                    marginTop: '4px',
+                    paddingTop: '8px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <LogOut size={14} style={{ color: '#ef4444' }} />
+                  Logout
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Profile Dropdown */}
-        <AdminProfile 
-          isOpen={profileDropdownOpen} 
-          setIsOpen={setProfileDropdownOpen} 
-        />
       </div>
 
       <style>{`
@@ -601,6 +1016,16 @@ export default function AdminHeader({
         @media (min-width: 1024px) {
           .mobile-burger-btn {
             display: none !important;
+          }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.4;
+            transform: scale(1.35);
           }
         }
       `}</style>

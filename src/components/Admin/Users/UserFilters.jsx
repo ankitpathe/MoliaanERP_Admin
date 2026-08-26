@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search } from 'lucide-react';
+import Select from '../../ui/Select';
 
 export default function UserFilters({ 
   searchQuery, 
@@ -29,7 +30,7 @@ export default function UserFilters({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search users..."
+          placeholder="Search by name, email, phone, or store ID..."
           style={{
             width: '100%',
             padding: '8px 12px 8px 36px',
@@ -47,45 +48,27 @@ export default function UserFilters({
       {/* Select Filters */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         {/* Status Filter */}
-        <select
+        <Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            fontSize: '0.85rem',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            outline: 'none',
-            color: '#4b5563',
-            cursor: 'pointer'
-          }}
+          style={{ minWidth: '150px' }}
         >
           <option value="All">All Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
-        </select>
+        </Select>
 
         {/* Role Filter */}
-        <select
+        <Select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            fontSize: '0.85rem',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            outline: 'none',
-            color: '#4b5563',
-            cursor: 'pointer'
-          }}
+          style={{ minWidth: '150px' }}
         >
           <option value="All">All Roles</option>
           {availableRoles.map(role => (
             <option key={role} value={role}>{role}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
     </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search } from 'lucide-react';
+import Select from '../../ui/Select';
 
 export default function LogFilters({
   search,
@@ -21,19 +22,10 @@ export default function LogFilters({
   ];
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: '16px',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      flexWrap: 'wrap',
-      background: '#ffffff',
-      padding: '16px',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb'
-    }}>
-      {/* Search Input */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '240px' }}>
+    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px' }}>
+      
+      {/* Search Bar */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '200px' }}>
         <input
           type="text"
           value={search}
@@ -53,44 +45,26 @@ export default function LogFilters({
       </div>
 
       {/* Module filter */}
-      <select
+      <Select
         value={moduleFilter}
         onChange={(e) => setModuleFilter(e.target.value)}
-        style={{
-          padding: '8px 12px',
-          fontSize: '0.85rem',
-          borderRadius: '8px',
-          border: '1px solid #e5e7eb',
-          background: '#ffffff',
-          outline: 'none',
-          color: '#4b5563',
-          cursor: 'pointer'
-        }}
+        style={{ minWidth: '160px' }}
       >
         {modules.map(mod => (
           <option key={mod} value={mod}>{mod === 'All' ? 'All Modules' : mod}</option>
         ))}
-      </select>
+      </Select>
 
       {/* Action Type filter */}
-      <select
+      <Select
         value={typeFilter}
         onChange={(e) => setTypeFilter(e.target.value)}
-        style={{
-          padding: '8px 12px',
-          fontSize: '0.85rem',
-          borderRadius: '8px',
-          border: '1px solid #e5e7eb',
-          background: '#ffffff',
-          outline: 'none',
-          color: '#4b5563',
-          cursor: 'pointer'
-        }}
+        style={{ minWidth: '160px' }}
       >
         {types.map(t => (
           <option key={t} value={t}>{t === 'All' ? 'All Action Types' : t}</option>
         ))}
-      </select>
+      </Select>
 
       {/* Quick Date Range */}
       <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '4px', borderRadius: '8px' }}>

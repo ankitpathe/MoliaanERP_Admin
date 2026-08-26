@@ -16,53 +16,40 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 
 const SEED_SYNC_LOGS = [
   {
-    id: "SYNC-2026-901",
-    terminalCode: "POS-01",
-    terminalName: "Main Checkout Counter",
-    deviceId: "MAC-88A1-POS1",
-    payloadType: "Sales Invoices",
-    recordsCount: 8,
-    latencyMs: 14,
-    timestamp: new Date(Date.now() - 120000).toISOString(),
-    status: "SUCCESS",
-    payloadSummary: "{ invoices: ['INV-2026-101', 'INV-2026-102'], totalAmount: 3450 }"
-  },
-  {
-    id: "SYNC-2026-902",
-    terminalCode: "POS-02",
-    terminalName: "Express Billing Counter",
-    deviceId: "MAC-99B2-POS2",
-    payloadType: "Stock Deductions",
+    id: "SYNC-101",
+    timestamp: "2026-08-25T11:47:41.000Z",
+    terminalName: "WWE Counter",
+    terminalCode: "POS-WWE",
+    deviceMac: "E4:5F:01:2A:8C:99",
+    category: "Sales Invoices & Khata",
     recordsCount: 14,
-    latencyMs: 22,
-    timestamp: new Date(Date.now() - 600000).toISOString(),
+    latencyMs: 12,
     status: "SUCCESS",
-    payloadSummary: "{ stockUpdates: [{ sku: 'OIL-1L', qtyDeducted: 2 }] }"
+    payloadSummary: `{"invoices":["INV-WWE-01","INV-WWE-02"],"khataUpdates":[{"customer":"Ankit Pathe","amount":899}]}`
   },
   {
-    id: "SYNC-2026-903",
+    id: "SYNC-102",
+    timestamp: "2026-08-25T11:37:00.000Z",
+    terminalName: "Express Billing",
+    terminalCode: "POS-02",
+    deviceMac: "DC:A6:32:41:78:11",
+    category: "Stock Inventory Adjustments",
+    recordsCount: 8,
+    latencyMs: 18,
+    status: "SUCCESS",
+    payloadSummary: `{"stockAdjustments":[{"sku":"PROD-02","quantity":-8}]}`
+  },
+  {
+    id: "SYNC-103",
+    timestamp: "2026-08-25T10:57:00.000Z",
+    terminalName: "Ground Floor Main",
     terminalCode: "POS-01",
-    terminalName: "Main Checkout Counter",
-    deviceId: "MAC-88A1-POS1",
-    payloadType: "Customer Khata Ledger",
-    recordsCount: 2,
-    latencyMs: 0,
-    timestamp: new Date(Date.now() - 1800000).toISOString(),
-    status: "FAILED",
-    errorMessage: "Timeout: Cloud node gateway unreachable",
-    payloadSummary: "{ khataUpdates: [{ customerId: 'CUST-88', addedUdhar: 500 }] }"
-  },
-  {
-    id: "SYNC-2026-904",
-    terminalCode: "POS-03",
-    terminalName: "Basement Grocery Hub",
-    deviceId: "MAC-77C3-POS3",
-    payloadType: "Barcode Catalog Sync",
-    recordsCount: 45,
-    latencyMs: 38,
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    deviceMac: "B8:27:EB:9A:33:40",
+    category: "Customer Ledger Sync",
+    recordsCount: 22,
+    latencyMs: 15,
     status: "SUCCESS",
-    payloadSummary: "{ catalogVersions: 'v2.4.1' }"
+    payloadSummary: `{"ledgerUpdates":[{"customerId":"CUST-103","synced":true}]}`
   }
 ];
 
@@ -82,12 +69,32 @@ export default function DataSyncReport() {
   useEffect(() => {
     const loadLogs = () => {
       const raw = localStorage.getItem('erp_sync_logs');
-      if (!raw || JSON.parse(raw).length === 0) {
-        localStorage.setItem('erp_sync_logs', JSON.stringify(SEED_SYNC_LOGS));
-        setLogs(SEED_SYNC_LOGS);
-      } else {
-        setLogs(JSON.parse(raw));
+      let data = [];
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch (e) {
+          data = [];
+        }
       }
+      if (!data || data.length === 0) {
+        data = SEED_SYNC_LOGS;
+      }
+      const normalized = data.map(log => ({
+        ...log,
+        id: log.id || "SYNC-101",
+        timestamp: log.timestamp || "2026-08-25T11:47:41.000Z",
+        terminalName: log.terminalName || "WWE Counter",
+        terminalCode: log.terminalCode || "POS-WWE",
+        deviceMac: log.deviceMac || log.deviceId || "E4:5F:01:2A:8C:99",
+        category: log.category || log.payloadType || "Sales Invoices & Khata",
+        recordsCount: log.recordsCount !== undefined ? Number(log.recordsCount) : 14,
+        latencyMs: log.latencyMs !== undefined ? Number(log.latencyMs) : 12,
+        status: log.status ? String(log.status).toUpperCase() : "SUCCESS",
+        payloadSummary: log.payloadSummary || `{"status":"${log.status || 'SUCCESS'}","recordsCount":${log.recordsCount || 14}}`
+      }));
+      localStorage.setItem('erp_sync_logs', JSON.stringify(normalized));
+      setLogs(normalized);
     };
     loadLogs();
   }, []);
@@ -109,17 +116,29 @@ export default function DataSyncReport() {
   // Actions handlers
   const handleForceSync = () => {
     setIsSyncingAll(true);
-    toast.showInfo('Sync Engine Triggered', 'Force synchronizing all terminal node queues...');
+    toast.showInfo('Sync Engine', 'Triggered sync signal to 4 active terminals');
 
     setTimeout(() => {
-      const updated = logs.map(l => ({ ...l, status: 'SUCCESS', latencyMs: l.latencyMs || 15 }));
+      const newBatch = {
+        id: "SYNC-104",
+        timestamp: new Date().toISOString(),
+        terminalName: "WWE Counter",
+        terminalCode: "POS-WWE",
+        deviceMac: "E4:5F:01:2A:8C:99",
+        category: "Sales Invoices & Khata",
+        recordsCount: 14,
+        latencyMs: 12,
+        status: "SUCCESS",
+        payloadSummary: `{"syncedRecords":14,"status":"SUCCESS"}`
+      };
+      const updated = [newBatch, ...logs];
       saveLogs(updated);
       setIsSyncingAll(false);
 
       logActivity({
         activityType: 'FORCE_SYNC_TRIGGERED',
         module: 'System Integrity',
-        actionDescription: 'Triggered administrative force sync on all POS terminal queues.'
+        actionDescription: 'Triggered administrative force sync and added success batch SYNC-104.'
       });
 
       toast.showSuccess('Sync Success', 'Successfully synchronized all offline transactions.');
@@ -131,23 +150,16 @@ export default function DataSyncReport() {
   };
 
   const handleConfirmPurge = () => {
-    const startOfToday = new Date().setHours(0,0,0,0);
-    const updated = logs.filter(l => {
-      // Keep pending/failed logs OR logs from today
-      if (l.status !== 'SUCCESS') return true;
-      return new Date(l.timestamp).getTime() >= startOfToday;
-    });
-
-    saveLogs(updated);
+    saveLogs(SEED_SYNC_LOGS);
 
     logActivity({
       activityType: 'SYNC_QUEUE_PURGED',
       module: 'System Integrity',
-      actionDescription: 'Purged historical data sync telemetry logs older than today.'
+      actionDescription: 'Reset sync reports queue logs to standard seed.'
     });
 
     setIsConfirmPurgeOpen(false);
-    toast.showInfo('Queue Purged', 'Cleaned up completed historical logs.');
+    toast.showSuccess('Queue Reset', 'Purged all logs and restored standard seed data.');
   };
 
   const handleRetry = (log) => {
@@ -321,14 +333,23 @@ export default function DataSyncReport() {
                 </div>
               </td>
               <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#111827' }}>{log.terminalName}</span>
-                  <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>Code: {log.terminalCode} ({log.deviceId})</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>{log.terminalName}</span>
+                    <span style={{ background: '#f3e8ff', color: '#6b21a8', fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                      {log.terminalCode}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>MAC: {log.deviceMac}</span>
                 </div>
               </td>
-              <td style={{ padding: '14px 16px', fontWeight: 600, color: '#4f46e5' }}>{log.payloadType}</td>
+              <td style={{ padding: '14px 16px' }}>
+                <span style={{ display: 'inline-flex', padding: '3px 8px', fontSize: '0.725rem', fontWeight: 700, borderRadius: '9999px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                  {log.category}
+                </span>
+              </td>
               <td style={{ padding: '14px 16px', fontWeight: 700 }}>{log.recordsCount} items</td>
-              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{log.status === 'SUCCESS' ? `${log.latencyMs}ms` : '--'}</td>
+              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{log.latencyMs}ms</td>
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <Badge variant={log.status === 'SUCCESS' ? 'success' : log.status === 'FAILED' ? 'danger' : 'warning'}>

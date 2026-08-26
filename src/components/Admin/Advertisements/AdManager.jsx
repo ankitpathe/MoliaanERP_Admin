@@ -3,6 +3,7 @@ import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
 import { Megaphone, Play, Pause, Trash2, Plus, Download, Monitor, Eye, ExternalLink, Activity, Sparkles, Settings, Edit } from 'lucide-react';
 import ConfirmDialog from '../../ui/ConfirmDialog';
+import Select from '../../ui/Select';
 
 const SEED_ADS = [
   {
@@ -519,29 +520,29 @@ export default function AdManager() {
           {/* Timeout Selector */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Idle Inactivity Timeout</span>
-            <select
+            <Select
               value={idleTimeoutSeconds}
               onChange={e => setIdleTimeoutSeconds(Number(e.target.value))}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.85rem', background: '#ffffff' }}
+              style={{ width: '100%' }}
             >
               <option value="5">5 Seconds (Testing)</option>
               <option value="10">10 Seconds</option>
               <option value="20">20 Seconds</option>
               <option value="30">30 Seconds</option>
-            </select>
+            </Select>
           </div>
 
           {/* Display Mode */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Ad Overlay Display Mode</span>
-            <select
+            <Select
               value={adDisplayMode}
               onChange={e => setAdDisplayMode(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.85rem', background: '#ffffff' }}
+              style={{ width: '100%' }}
             >
               <option value="FULLSCREEN_SAVER">Fullscreen Saver Overlay</option>
               <option value="RIGHT_SLIDER">Sidebar Popout Slider</option>
-            </select>
+            </Select>
           </div>
 
         </div>
@@ -991,14 +992,14 @@ export default function AdManager() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Slot Placement *</span>
-                <select 
+                <Select 
                   value={type} 
                   onChange={e => setType(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.85rem', background: '#ffffff' }}
+                  style={{ width: '100%' }}
                 >
                   <option value="VERTICAL">Right Side Vertical (Skyscraper)</option>
                   <option value="HORIZONTAL">Bottom Footer Strip (Full-width)</option>
-                </select>
+                </Select>
               </div>
 
               {/* Image Input Selector */}
@@ -1117,15 +1118,15 @@ export default function AdManager() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Priority</span>
-                  <select 
+                  <Select 
                     value={priority} 
                     onChange={e => setPriority(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.85rem', background: '#ffffff' }}
+                    style={{ width: '100%' }}
                   >
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>
                     <option value="Low">Low</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

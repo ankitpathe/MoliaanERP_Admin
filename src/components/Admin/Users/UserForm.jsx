@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { getUsers } from '../../../services/userService';
+import Select from '../../ui/Select';
 
 export default function UserForm({ user, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -166,45 +167,27 @@ export default function UserForm({ user, onSave, onCancel }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-form-row">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Role *</label>
-            <select
+            <Select
               value={formData.role}
               onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-              style={{
-                padding: '10px 14px',
-                fontSize: '0.875rem',
-                borderRadius: '10px',
-                border: '1px solid #e5e7eb',
-                outline: 'none',
-                background: '#ffffff',
-                color: '#1f2937',
-                cursor: 'pointer'
-              }}
+              style={{ width: '100%' }}
             >
               <option value="Administrator">Administrator</option>
               <option value="Manager">Manager</option>
               <option value="Staff">Staff</option>
-            </select>
+            </Select>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Status *</label>
-            <select
+            <Select
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              style={{
-                padding: '10px 14px',
-                fontSize: '0.875rem',
-                borderRadius: '10px',
-                border: '1px solid #e5e7eb',
-                outline: 'none',
-                background: '#ffffff',
-                color: '#1f2937',
-                cursor: 'pointer'
-              }}
+              style={{ width: '100%' }}
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
+            </Select>
           </div>
         </div>
       </div>

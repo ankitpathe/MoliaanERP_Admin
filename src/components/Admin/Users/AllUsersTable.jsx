@@ -16,13 +16,13 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 const SEED_USERS = [
   {
     id: "USR-101",
-    storeName: "Gupta Supermart",
-    ownerName: "Aman Gupta",
-    email: "aman@guptamart.com",
+    storeName: "WWE Arena Supermart",
+    ownerName: "Ankit Pathe",
+    email: "ankit@wwearena.com",
     phone: "9876543210",
     city: "Chhindwara",
-    activePlan: "Gold Pro",
-    terminalsUsed: 2,
+    activePlan: "WWE Pro Plan (₹899)",
+    terminalsUsed: 1,
     terminalsAllowed: 3,
     createdAt: "2026-01-10T00:00:00.000Z",
     lastLogin: new Date(Date.now() - 1800000).toISOString(),
@@ -30,14 +30,14 @@ const SEED_USERS = [
   },
   {
     id: "USR-102",
-    storeName: "Verma Organic Grocery",
-    ownerName: "Pooja Verma",
-    email: "pooja@vermaorganics.in",
+    storeName: "Gupta Supermart",
+    ownerName: "Aman Gupta",
+    email: "aman@guptamart.com",
     phone: "9811223344",
     city: "Bhopal",
-    activePlan: "Silver Starter",
-    terminalsUsed: 1,
-    terminalsAllowed: 1,
+    activePlan: "Gold Pro",
+    terminalsUsed: 2,
+    terminalsAllowed: 3,
     createdAt: "2026-03-01T00:00:00.000Z",
     lastLogin: new Date(Date.now() - 86400000).toISOString(),
     status: "ACTIVE"
@@ -76,12 +76,71 @@ export default function AllUsersTable() {
   useEffect(() => {
     const loadUsers = () => {
       const raw = localStorage.getItem('erp_users');
-      if (!raw || JSON.parse(raw).length === 0) {
-        localStorage.setItem('erp_users', JSON.stringify(SEED_USERS));
-        setUsers(SEED_USERS);
-      } else {
-        setUsers(JSON.parse(raw));
+      let data = [];
+      if (raw) {
+        data = JSON.parse(raw);
       }
+
+      if (!data || data.length === 0) {
+        data = SEED_USERS;
+      }
+
+      // Normalization and enrichment function
+      const normalizeUser = (u) => {
+        const storeName = u.storeName || u.name || u.businessName || "WWE Arena Supermart";
+        const ownerName = u.ownerName || u.merchantName || u.fullName || "Ankit Pathe";
+        const phone = u.phone || "9876543210";
+        const email = u.email || u.username || "ankit@wwearena.com";
+        const city = u.city || u.location || u.address || "Chhindwara";
+        const activePlan = u.activePlan || u.plan || u.planName || "WWE Pro Plan (₹899)";
+        const terminalsUsed = u.terminalsUsed !== undefined ? Number(u.terminalsUsed) : 1;
+        const terminalsAllowed = u.terminalsAllowed !== undefined ? Number(u.terminalsAllowed) : 3;
+        const createdAt = u.createdAt || "2026-01-10T00:00:00.000Z";
+        const status = u.status ? String(u.status).toUpperCase() : "ACTIVE";
+
+        return {
+          ...u,
+          id: u.id || "USR-" + Date.now().toString().slice(-4),
+          storeName,
+          ownerName,
+          phone,
+          email,
+          city,
+          activePlan,
+          terminalsUsed,
+          terminalsAllowed,
+          createdAt,
+          status
+        };
+      };
+
+      let normalized = data.map(normalizeUser);
+
+      const hasWWE = normalized.some(u => 
+        String(u.storeName).toLowerCase().includes('wwe arena') || 
+        String(u.ownerName).toLowerCase().includes('ankit pathe') ||
+        u.id === 'USR-101'
+      );
+
+      if (!hasWWE) {
+        const wweUser = {
+          id: "USR-101",
+          storeName: "WWE Arena Supermart",
+          ownerName: "Ankit Pathe",
+          email: "ankit@wwearena.com",
+          phone: "9876543210",
+          city: "Chhindwara",
+          activePlan: "WWE Pro Plan (₹899)",
+          terminalsUsed: 1,
+          terminalsAllowed: 3,
+          createdAt: "2026-01-10T00:00:00.000Z",
+          status: "ACTIVE"
+        };
+        normalized = [wweUser, ...normalized];
+      }
+
+      localStorage.setItem('erp_users', JSON.stringify(normalized));
+      setUsers(normalized);
     };
     loadUsers();
   }, []);
@@ -196,7 +255,7 @@ export default function AllUsersTable() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Merchants_Registry_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', 'Merchants_Registry.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -259,7 +318,7 @@ export default function AllUsersTable() {
         </div>
 
         <StatCard label="Suspended Accounts" value={suspendedCount} icon={ShieldAlert} color="#dc2626" />
-        <StatCard label="Total POS Terminals Seats" value={`${occupiedTerminals} / ${totalTerminals}`} icon={Layers} color="#0891b2" />
+        <StatCard label="Total POS Quota Used" value={occupiedTerminals} icon={Layers} color="#0891b2" />
 
       </div>
 
@@ -319,40 +378,53 @@ export default function AllUsersTable() {
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>ID: {merchant.id}</span>
+                  <span style={{ fontSize: '0.725rem', color: '#4b5563' }}>Owner: {merchant.ownerName}</span>
+                  <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id}</span>
                 </div>
               </td>
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.ownerName}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>{merchant.email} • {merchant.phone}</span>
+                  <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.email}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{merchant.phone}</span>
                 </div>
               </td>
-              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{merchant.city || 'N/A'}</td>
-              <td style={{ padding: '14px 16px', fontWeight: 700, color: '#4f46e5' }}>{merchant.activePlan}</td>
+              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{merchant.city || 'Chhindwara'}</td>
+              <td style={{ padding: '14px 16px' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  padding: '4px 8px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  backgroundColor: '#f3e8ff',
+                  color: '#6b21a8'
+                }}>
+                  {merchant.activePlan}
+                </span>
+              </td>
               
               {/* POS Allocation usage bar */}
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '90px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4b5563' }}>
-                    {merchant.terminalsUsed} / {merchant.terminalsAllowed} Slots
+                    {merchant.terminalsUsed ?? 1} / {merchant.terminalsAllowed ?? 3} Slots
                   </span>
                   <div style={{ width: '100%', height: '5px', background: '#e5e7eb', borderRadius: '99px', overflow: 'hidden' }}>
                     <div style={{ 
-                      width: `${Math.min(100, Math.round(((merchant.terminalsUsed || 0) / (merchant.terminalsAllowed || 1)) * 100))}%`, 
+                      width: `${Math.min(100, Math.round(((merchant.terminalsUsed ?? 1) / (merchant.terminalsAllowed ?? 3)) * 100))}%`, 
                       height: '100%', 
-                      background: merchant.terminalsUsed >= merchant.terminalsAllowed ? '#d97706' : '#10b981' 
+                      background: (merchant.terminalsUsed ?? 1) >= (merchant.terminalsAllowed ?? 3) ? '#d97706' : '#10b981' 
                     }} />
                   </div>
                 </div>
               </td>
 
               <td style={{ padding: '14px 16px', color: '#6b7280' }}>
-                {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString() : 'N/A'}
+                {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString() : '25 Aug 2026'}
               </td>
               <td style={{ padding: '14px 16px' }}>
-                <Badge variant={merchant.status === 'ACTIVE' ? 'success' : 'danger'}>
-                  {merchant.status}
+                <Badge variant={String(merchant.status).toUpperCase() === 'ACTIVE' ? 'success' : 'danger'}>
+                  {String(merchant.status).toUpperCase()}
                 </Badge>
               </td>
               <td style={{ padding: '14px 16px', textAlign: 'right' }}>

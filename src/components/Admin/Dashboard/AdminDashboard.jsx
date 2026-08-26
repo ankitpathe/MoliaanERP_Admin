@@ -51,35 +51,58 @@ export default function AdminDashboard() {
   const [adConfig, setAdConfig] = useState({ enableIdleAds: false, idleTimeoutSeconds: 10, adDisplayMode: 'FULLSCREEN_SAVER', activeBanners: [] });
   const [currentIdleAdIdx, setCurrentIdleAdIdx] = useState(0);
 
+  const formatLogTime = (timeStr) => {
+    if (!timeStr) return 'Just now';
+    try {
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) return timeStr;
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    } catch (e) {
+      return 'Just now';
+    }
+  };
+
   useEffect(() => {
     // 1. Counters
     const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
     const totalCounters = counters.length;
-    const onlineCounters = counters.filter(c => c.status === 'Online').length;
+    const onlineCounters = counters.filter(c => String(c.status).toUpperCase() === 'ONLINE').length;
 
     // 2. Plans
     const plans = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
-    const activePlans = plans.length || 3;
+    const activePlans = plans.filter(p => String(p.status).toUpperCase() === 'ACTIVE').length || 3;
 
     // 3. Merchants/Users
     const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-    const totalMerchants = users.length || 8;
+    const totalMerchants = users.length;
 
     // 4. Sync status
     const syncLogs = JSON.parse(localStorage.getItem('erp_sync_logs') || '[]');
-    const pendingSyncs = syncLogs.filter(s => s.status === 'Warning' || s.status === 'Failed' || s.status === 'Pending').length || 2;
+    const pendingSyncs = syncLogs.filter(s => ['PENDING', 'WARNING', 'FAILED', 'QUEUED'].includes(String(s.status).toUpperCase())).length;
 
     // 5. Gross Platform Volume (Sales)
-    const sales = JSON.parse(localStorage.getItem('erp_sales') || '[]');
-    const grossVolume = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0) || 24186;
+    const rawSales = localStorage.getItem('erp_sales') || localStorage.getItem('sales') || localStorage.getItem('invoices') || '[]';
+    const sales = JSON.parse(rawSales);
+    const grossVolume = sales.reduce((sum, s) => sum + (Number(s.grandTotal || s.total) || 0), 0);
 
     // 6. Low stock alert count
     const products = JSON.parse(localStorage.getItem('erp_products') || '[]');
-    const lowStockCount = products.filter(p => Number(p.stock) <= 10).length || 1;
+    const lowStockCount = products.filter(p => Number(p.stock) <= 10).length || 0;
 
-    // 7. Recent logs (Developer Audit)
+    // 7. Recent logs (Developer Audit) - Sort by date descending
     const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
-    const recentLogs = logs.slice(0, 3);
+    const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
+    const recentLogs = sortedLogs.slice(0, 3).map(l => ({
+      ...l,
+      timeFormatted: formatLogTime(l.timestamp || l.createdAt)
+    }));
 
     setMetrics({
       totalCounters,
@@ -94,15 +117,13 @@ export default function AdminDashboard() {
 
     // Load Idle Ads config
     const rawConfig = localStorage.getItem('erp_ad_config');
-    let config = { enableIdleAds: false, idleTimeoutSeconds: 10, adDisplayMode: 'FULLSCREEN_SAVER', activeBanners: [] };
+    let config = { enableIdleAds: true, idleTimeoutSeconds: 10, adDisplayMode: 'FULLSCREEN_SAVER', activeBanners: [] };
     if (rawConfig) {
       config = JSON.parse(rawConfig);
     }
     setAdConfig(config);
 
-    if (!config.enableIdleAds || !config.activeBanners || config.activeBanners.filter(b => b.status === 'ACTIVE').length === 0) {
-      return;
-    }
+    const idleSeconds = Number(config.idleTimeoutSeconds) || 10;
 
     let timeoutId;
     const resetTimer = () => {
@@ -110,7 +131,7 @@ export default function AdminDashboard() {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         setIsIdle(true);
-      }, config.idleTimeoutSeconds * 1000);
+      }, idleSeconds * 1000);
     };
 
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
@@ -124,7 +145,18 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const activeBannersToRender = adConfig.activeBanners?.filter(b => b.status === 'ACTIVE') || [];
+  const activeBannersToRender = (adConfig.activeBanners || []).filter(b => b.status === 'ACTIVE').length > 0
+    ? adConfig.activeBanners.filter(b => b.status === 'ACTIVE')
+    : [
+        {
+          id: 'DEFAULT-PROMO',
+          title: 'Upgrade to Moliaan ERP Gold Pro',
+          imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=600&h=380&auto=format&fit=crop',
+          targetUrl: '/admin/plans',
+          ctaText: 'View Gold Pro Plan',
+          status: 'ACTIVE'
+        }
+      ];
 
   // Carousel timer inside idle state
   useEffect(() => {
@@ -422,9 +454,9 @@ export default function AdminDashboard() {
                       >
                         {log.actionDescription}
                       </span>
-                      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{log.module} • {log.userName}</span>
+                      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{log.module} • {log.userName || log.operator || 'System'}</span>
                     </div>
-                    <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontFamily: 'monospace' }}>{log.time || 'Today'}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontFamily: 'monospace' }}>{log.timeFormatted || 'Just now'}</span>
                   </div>
                 ))
               )}

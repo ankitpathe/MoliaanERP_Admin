@@ -139,7 +139,83 @@ export default function InvoicesReport() {
   };
 
   const handlePrintReceipt = (receipt) => {
-    toast.showSuccess('Print Action Triggered', `Re-printing invoice receipt: ${receipt.id}`);
+    // Compute totals from items in case stored values are 0/missing
+    const itemsArr = receipt.items || [];
+    const computedTaxable = itemsArr.reduce((sum, it) => sum + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
+    const taxableAmt  = Number(receipt.taxableAmount) > 0 ? Number(receipt.taxableAmount) : computedTaxable;
+    const cgstAmt     = Number(receipt.cgst) > 0 ? Number(receipt.cgst) : 0;
+    const sgstAmt     = Number(receipt.sgst) > 0 ? Number(receipt.sgst) : 0;
+    const grandAmt    = Number(receipt.grandTotal) > 0 ? Number(receipt.grandTotal) : (taxableAmt + cgstAmt + sgstAmt);
+
+    const itemRows = itemsArr.map(it => `
+      <tr>
+        <td style="padding:4px 0;">${it.name} (x${it.qty})</td>
+        <td style="padding:4px 0;text-align:right;">&#8377;${((Number(it.qty) || 1) * (Number(it.price) || 0)).toFixed(2)}</td>
+      </tr>`).join('');
+
+    const receiptHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Receipt ${receipt.id}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Courier New', monospace; font-size: 12px; width: 280px; padding: 16px; }
+  .center { text-align: center; }
+  .title { font-size: 15px; font-weight: 900; }
+  .divider { border: none; border-top: 1px dashed #555; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  .totals td { padding: 3px 0; }
+  .grand { font-weight: 900; font-size: 14px; border-top: 1px dashed #555; padding-top: 6px; margin-top: 4px; }
+  .footer { text-align: center; margin-top: 10px; color: #555; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div class="center">
+    <div class="title">MOLIAAN RETAIL ERP</div>
+    <div>Terminal: ${receipt.counterCode || 'N/A'}</div>
+    <div>${new Date(receipt.date).toLocaleString()}</div>
+  </div>
+  <hr class="divider"/>
+  <table>
+    <tr><td>Invoice No:</td><td style="text-align:right;font-weight:bold;">${receipt.id}</td></tr>
+    <tr><td>Customer:</td><td style="text-align:right;">${receipt.customerName || 'Walk-in'}</td></tr>
+    ${receipt.customerPhone ? `<tr><td>Contact:</td><td style="text-align:right;">${receipt.customerPhone}</td></tr>` : ''}
+  </table>
+  <hr class="divider"/>
+  <table>${itemRows}</table>
+  <hr class="divider"/>
+  <table class="totals">
+    <tr><td>Taxable Amount:</td><td style="text-align:right;">&#8377;${taxableAmt.toFixed(2)}</td></tr>
+    <tr><td>CGST:</td><td style="text-align:right;">&#8377;${cgstAmt.toFixed(2)}</td></tr>
+    <tr><td>SGST:</td><td style="text-align:right;">&#8377;${sgstAmt.toFixed(2)}</td></tr>
+  </table>
+  <table class="grand">
+    <tr><td><b>Grand Total:</b></td><td style="text-align:right;"><b>&#8377;${grandAmt.toFixed(2)}</b></td></tr>
+  </table>
+  <div class="footer">Paid via ${receipt.paymentMode || 'Cash'} &bull; Thank You!</div>
+</body>
+</html>`;
+
+    // Render into hidden iframe and print only that
+    let iframe = document.getElementById('__receipt_print_frame__');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = '__receipt_print_frame__';
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:600px;border:none;';
+      document.body.appendChild(iframe);
+    }
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(receiptHTML);
+    iframe.contentDocument.close();
+    iframe.onload = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    };
+    // fallback for browsers that don't fire onload for srcdoc writes
+    setTimeout(() => {
+      try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e) {}
+    }, 300);
   };
 
   const tableHeaders = [
@@ -316,95 +392,103 @@ export default function InvoicesReport() {
       </Table>
 
       {/* View Receipt Modal overlay */}
-      {activeReceipt && (
-        <>
-          <div 
-            onClick={() => setActiveReceipt(null)}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)', zIndex: 9998 }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '360px',
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            padding: '24px',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            fontFamily: 'monospace'
-          }}>
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '12px' }}>
-              <span style={{ fontSize: '1rem', fontWeight: 800 }}>MOLIAAN RETAIL ERP</span>
-              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Receipt Outlet POS Terminal: {activeReceipt.counterCode}</span>
-              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Date: {new Date(activeReceipt.date).toLocaleString()}</span>
-            </div>
+      {activeReceipt && (() => {
+        const itemsArr = activeReceipt.items || [];
+        const computedTaxable = itemsArr.reduce((sum, it) => sum + (Number(it.qty) || 1) * (Number(it.price) || 0), 0);
+        const taxableAmt = Number(activeReceipt.taxableAmount) > 0 ? Number(activeReceipt.taxableAmount) : computedTaxable;
+        const cgstAmt    = Number(activeReceipt.cgst) > 0 ? Number(activeReceipt.cgst) : 0;
+        const sgstAmt    = Number(activeReceipt.sgst) > 0 ? Number(activeReceipt.sgst) : 0;
+        const grandAmt   = Number(activeReceipt.grandTotal) > 0 ? Number(activeReceipt.grandTotal) : (taxableAmt + cgstAmt + sgstAmt);
+        return (
+          <>
+            <div
+              onClick={() => setActiveReceipt(null)}
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)', zIndex: 9998 }}
+            />
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '360px',
+              background: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              padding: '24px',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              fontFamily: 'monospace'
+            }}>
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '12px' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 800 }}>MOLIAAN RETAIL ERP</span>
+                <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Receipt Outlet POS Terminal: {activeReceipt.counterCode}</span>
+                <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Date: {new Date(activeReceipt.date).toLocaleString()}</span>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                <span>Invoice No:</span>
-                <strong>{activeReceipt.id}</strong>
-              </div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                <span>Customer:</span>
-                <span>{activeReceipt.customerName || 'Walk-in'}</span>
-              </div>
-              {activeReceipt.customerPhone && (
-                <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                  <span>Contact:</span>
-                  <span>{activeReceipt.customerPhone}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span>Invoice No:</span>
+                  <strong>{activeReceipt.id}</strong>
                 </div>
-              )}
-            </div>
-
-            <div style={{ borderTop: '1px dashed #d1d5db', borderBottom: '1px dashed #d1d5db', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {(activeReceipt.items || []).map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                  <span>{item.name} (x{item.qty})</span>
-                  <span>₹{(item.qty * item.price).toFixed(2)}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span>Customer:</span>
+                  <span>{activeReceipt.customerName || 'Walk-in'}</span>
                 </div>
-              ))}
-            </div>
+                {activeReceipt.customerPhone && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                    <span>Contact:</span>
+                    <span>{activeReceipt.customerPhone}</span>
+                  </div>
+                )}
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                <span>Taxable Amount:</span>
-                <span>₹{(activeReceipt.taxableAmount || 0).toFixed(2)}</span>
+              <div style={{ borderTop: '1px dashed #d1d5db', borderBottom: '1px dashed #d1d5db', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {itemsArr.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                    <span>{item.name} (x{item.qty})</span>
+                    <span>₹{((Number(item.qty) || 1) * (Number(item.price) || 0)).toFixed(2)}</span>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                <span>CGST:</span>
-                <span>₹{(activeReceipt.cgst || 0).toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.75rem' }}>
-                <span>SGST:</span>
-                <span>₹{(activeReceipt.sgst || 0).toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: '0.85rem', fontWeight: 800, marginTop: '4px' }}>
-                <span>Grand Total:</span>
-                <span>₹{(activeReceipt.grandTotal || 0).toFixed(2)}</span>
-              </div>
-            </div>
 
-            <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#9ca3af' }}>
-              <span>Paid via {activeReceipt.paymentMode} • Thank You!</span>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span>Taxable Amount:</span>
+                  <span>₹{taxableAmt.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span>CGST:</span>
+                  <span>₹{cgstAmt.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span>SGST:</span>
+                  <span>₹{sgstAmt.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 800, marginTop: '4px' }}>
+                  <span>Grand Total:</span>
+                  <span>₹{grandAmt.toFixed(2)}</span>
+                </div>
+              </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-              <Button variant="secondary" onClick={() => setActiveReceipt(null)} style={{ flex: 1 }}>
-                Close
-              </Button>
-              <Button variant="purple" onClick={() => handlePrintReceipt(activeReceipt)} style={{ flex: 1, gap: '4px' }}>
-                <Printer size={12} /> Reprint
-              </Button>
+              <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#9ca3af' }}>
+                <span>Paid via {activeReceipt.paymentMode} • Thank You!</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <Button variant="secondary" onClick={() => setActiveReceipt(null)} style={{ flex: 1 }}>
+                  Close
+                </Button>
+                <Button variant="purple" onClick={() => handlePrintReceipt(activeReceipt)} style={{ flex: 1, gap: '4px' }}>
+                  <Printer size={12} /> Reprint
+                </Button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
     </div>
   );

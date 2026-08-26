@@ -80,12 +80,40 @@ export default function SubscriptionRequestsTable() {
   useEffect(() => {
     const loadRequests = () => {
       const raw = localStorage.getItem('erp_admin_sub_requests');
-      if (!raw || JSON.parse(raw).length === 0) {
-        localStorage.setItem('erp_admin_sub_requests', JSON.stringify(SEED_REQUESTS));
-        setRequests(SEED_REQUESTS);
-      } else {
-        setRequests(JSON.parse(raw));
+      let data = [];
+      if (raw) {
+        data = JSON.parse(raw);
       }
+      
+      if (!data || data.length === 0) {
+        data = SEED_REQUESTS;
+        localStorage.setItem('erp_admin_sub_requests', JSON.stringify(data));
+      }
+
+      // Check for 'WWE Arena Supermart' or ID REQ-WWE-899
+      const hasWWE = data.some(r => r.storeName === 'WWE Arena Supermart' || r.id === 'REQ-WWE-899');
+      if (!hasWWE) {
+        const wweReq = {
+          id: "REQ-WWE-899",
+          merchantName: "Ankit Pathe",
+          storeName: "WWE Arena Supermart",
+          phone: "9876543210",
+          email: "ankit@wwearena.com",
+          planId: "PLAN-WWE-899",
+          planName: "WWE Pro Plan (₹899)",
+          billingCycle: "MONTHLY",
+          amount: 899,
+          paymentMode: "UPI / PhonePe",
+          utrNumber: "UPI202688491290",
+          paymentProofUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600",
+          requestedAt: new Date().toISOString(),
+          status: "PENDING"
+        };
+        data = [wweReq, ...data];
+        localStorage.setItem('erp_admin_sub_requests', JSON.stringify(data));
+      }
+
+      setRequests(data);
     };
     loadRequests();
   }, []);
@@ -97,32 +125,41 @@ export default function SubscriptionRequestsTable() {
 
   // KPI calculations
   const pendingCount = requests.filter(r => r.status === 'PENDING').length;
-  const approvedThisMonth = requests.filter(r => r.status === 'APPROVED' && new Date(r.requestedAt).getMonth() === new Date().getMonth()).length;
-  const totalCount = requests.length;
+  const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
+  const rejectedCount = requests.filter(r => r.status === 'REJECTED').length;
   const pendingRevenue = requests.filter(r => r.status === 'PENDING').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   // Form handlers
-  const handleApprove = (req) => {
+  const handleApprove = (reqOrId) => {
+    const req = typeof reqOrId === 'string'
+      ? requests.find(r => r.id === reqOrId)
+      : reqOrId;
+    if (!req) return;
+
     const updated = requests.map(r => r.id === req.id ? { ...r, status: 'APPROVED' } : r);
     saveRequests(updated);
 
+    const daysToAdd = req.billingCycle === 'YEARLY' ? 365 : 30;
+
     // Write subscription record
     const activeSub = {
-      id: `SUB-${Date.now()}`,
-      merchantName: req.merchantName,
+      id: "LIC-" + Date.now().toString().slice(-4),
       storeName: req.storeName,
+      merchantName: req.merchantName,
       phone: req.phone,
-      email: req.email,
-      planId: req.planId,
       planName: req.planName,
       billingCycle: req.billingCycle,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + (req.billingCycle === 'YEARLY' ? 365 : 30) * 24 * 3600000).toISOString().split('T')[0],
-      status: 'Active'
+      amount: req.amount,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + daysToAdd * 86400000).toISOString(),
+      countersUsed: 1,
+      countersAllowed: 3,
+      status: "ACTIVE",
+      paymentRef: req.utrNumber
     };
 
     const subs = JSON.parse(localStorage.getItem('erp_admin_subscriptions') || '[]');
-    localStorage.setItem('erp_admin_subscriptions', JSON.stringify([...subs, activeSub]));
+    localStorage.setItem('erp_admin_subscriptions', JSON.stringify([activeSub, ...subs]));
 
     // Update merchant plan in users list
     const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
@@ -141,7 +178,27 @@ export default function SubscriptionRequestsTable() {
       actionDescription: `Approved plan "${req.planName}" upgrade request for ${req.storeName} (${req.merchantName})`
     });
 
-    toast.showSuccess('Request Approved', `Subscription tier active for ${req.storeName}.`);
+    toast.showSuccess('Request Approved', `Subscription for ${req.storeName} approved!`);
+    setActiveProof(null);
+  };
+
+  const handleReject = (reqOrId, reason = 'Rejected by administrator') => {
+    const req = typeof reqOrId === 'string'
+      ? requests.find(r => r.id === reqOrId)
+      : reqOrId;
+    if (!req) return;
+
+    const updated = requests.map(r => r.id === req.id ? { ...r, status: 'REJECTED', rejectReason: reason } : r);
+    saveRequests(updated);
+
+    logActivity({
+      activityType: 'SUBSCRIPTION_REQUEST_REJECTED',
+      module: 'Subscriptions',
+      actionDescription: `Rejected upgrade request for ${req.storeName}. Reason: ${reason}`
+    });
+
+    toast.showInfo('Request Rejected', `Upgrade request for ${req.storeName} has been rejected.`);
+    setRejectingReq(null);
     setActiveProof(null);
   };
 
@@ -156,19 +213,7 @@ export default function SubscriptionRequestsTable() {
       toast.showError('Validation Error', 'Please input a reason for rejection.');
       return;
     }
-
-    const updated = requests.map(r => r.id === rejectingReq.id ? { ...r, status: 'REJECTED', rejectReason: rejectReason.trim() } : r);
-    saveRequests(updated);
-
-    logActivity({
-      activityType: 'SUBSCRIPTION_REQUEST_REJECTED',
-      module: 'Subscriptions',
-      actionDescription: `Rejected upgrade request for ${rejectingReq.storeName}. Reason: ${rejectReason.trim()}`
-    });
-
-    toast.showInfo('Request Rejected', `Upgrade request for ${rejectingReq.storeName} has been rejected.`);
-    setRejectingReq(null);
-    setActiveProof(null);
+    handleReject(rejectingReq.id, rejectReason.trim());
   };
 
   // Filter lists
@@ -221,8 +266,8 @@ export default function SubscriptionRequestsTable() {
 
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Approved (This Month)</span>
-            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#10b981', margin: '4px 0' }}>{approvedThisMonth} Approved</h4>
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Approved Count</span>
+            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#10b981', margin: '4px 0' }}>{approvedCount} Approved</h4>
           </div>
           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Check size={18} />
@@ -231,10 +276,10 @@ export default function SubscriptionRequestsTable() {
 
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Total Requests</span>
-            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#4f46e5', margin: '4px 0' }}>{totalCount} Total</h4>
+            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Rejected Count</span>
+            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#ef4444', margin: '4px 0' }}>{rejectedCount} Rejected</h4>
           </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(79, 70, 229, 0.08)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Layers size={18} />
           </div>
         </div>

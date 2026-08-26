@@ -73,27 +73,123 @@ export default function SubscriptionReportsTable() {
   useEffect(() => {
     const loadSubs = () => {
       const raw = localStorage.getItem('erp_admin_subscriptions');
-      if (!raw || JSON.parse(raw).length === 0) {
-        localStorage.setItem('erp_admin_subscriptions', JSON.stringify(SEED_SUBS));
-        setSubscriptions(SEED_SUBS);
-      } else {
-        // Hydrate status dynamically based on current date
-        const parsed = JSON.parse(raw).map(sub => {
-          const diff = new Date(sub.endDate).getTime() - Date.now();
-          const daysLeft = Math.ceil(diff / (24 * 3600000));
-          let status = sub.status || 'ACTIVE';
-
-          if (daysLeft <= 0) {
-            status = 'EXPIRED';
-          } else if (daysLeft <= 7) {
-            status = 'EXPIRING_SOON';
-          } else if (sub.status !== 'EXPIRED') {
-            status = 'ACTIVE';
-          }
-          return { ...sub, status };
-        });
-        setSubscriptions(parsed);
+      let data = [];
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch (e) {
+          data = [];
+        }
       }
+
+      if (!data || !Array.isArray(data)) {
+        data = [];
+      }
+
+      // Filter corrupted/incomplete entries
+      const isValidDate = (d) => d && !isNaN(new Date(d).getTime());
+      const cleanList = data.filter(s => 
+        s && 
+        s.storeName && 
+        s.planName && 
+        (Number(s.amount || s.price || 0) > 0) &&
+        isValidDate(s.endDate)
+      );
+
+      // Deduplicate by storeName and ID
+      const uniqueList = [];
+      const seenIds = new Set();
+      const seenStores = new Set();
+      for (const s of cleanList) {
+        const storeKey = String(s.storeName).toLowerCase().trim();
+        if (!seenIds.has(s.id) && !seenStores.has(storeKey)) {
+          seenIds.add(s.id);
+          seenStores.add(storeKey);
+          uniqueList.push(s);
+        }
+      }
+
+      // Populate with seed dataset if clean list is small
+      let finalData = uniqueList;
+      if (uniqueList.length < 3) {
+        finalData = [
+          {
+            id: "LIC-WWE-899",
+            storeName: "WWE Arena Supermart",
+            merchantName: "Ankit Pathe",
+            phone: "9876543210",
+            planName: "WWE Pro Plan (₹899)",
+            billingCycle: "MONTHLY",
+            amount: 899,
+            startDate: "2026-08-01T00:00:00.000Z",
+            endDate: "2026-09-24T00:00:00.000Z",
+            countersUsed: 1,
+            countersAllowed: 3,
+            status: "ACTIVE",
+            paymentRef: "UPI202688491290"
+          },
+          {
+            id: "LIC-GUP-499",
+            storeName: "Gupta Supermart",
+            merchantName: "Aman Gupta",
+            phone: "9811223344",
+            planName: "Gold Pro (₹1,499)",
+            billingCycle: "MONTHLY",
+            amount: 1499,
+            startDate: "2026-07-15T00:00:00.000Z",
+            endDate: "2026-10-15T00:00:00.000Z",
+            countersUsed: 2,
+            countersAllowed: 3,
+            status: "ACTIVE",
+            paymentRef: "UPI202611223344"
+          },
+          {
+            id: "LIC-APX-299",
+            storeName: "Apex Footwear Hub",
+            merchantName: "Vikram Sethi",
+            phone: "9123456789",
+            planName: "Silver Starter (₹499)",
+            billingCycle: "YEARLY",
+            amount: 4999,
+            startDate: "2026-01-10T00:00:00.000Z",
+            endDate: "2027-01-10T00:00:00.000Z",
+            countersUsed: 1,
+            countersAllowed: 1,
+            status: "ACTIVE",
+            paymentRef: "UPI202699887766"
+          }
+        ];
+      }
+
+      // Check if WWE Arena Supermart exists in list, else add it
+      const hasWWE = finalData.some(s => 
+        String(s.storeName).toLowerCase().includes('wwe arena') || 
+        s.id === 'LIC-WWE-899'
+      );
+
+      if (!hasWWE) {
+        finalData = [
+          {
+            id: "LIC-WWE-899",
+            storeName: "WWE Arena Supermart",
+            merchantName: "Ankit Pathe",
+            phone: "9876543210",
+            planName: "WWE Pro Plan (₹899)",
+            billingCycle: "MONTHLY",
+            amount: 899,
+            startDate: "2026-08-01T00:00:00.000Z",
+            endDate: "2026-09-24T00:00:00.000Z",
+            countersUsed: 1,
+            countersAllowed: 3,
+            status: "ACTIVE",
+            paymentRef: "UPI202688491290"
+          },
+          ...finalData
+        ];
+      }
+
+      localStorage.setItem('erp_admin_subscriptions', JSON.stringify(finalData));
+      setSubscriptions(finalData);
     };
     loadSubs();
   }, []);
@@ -109,27 +205,19 @@ export default function SubscriptionReportsTable() {
     toast.showSuccess('Data Refreshed', 'Subscription records reloaded.');
   };
 
-  // Helper Days Left
-  const getDaysLeft = (endDate) => {
-    const diff = new Date(endDate).getTime() - Date.now();
-    return Math.ceil(diff / (24 * 3600000));
-  };
-
   // KPI calculations
-  const activeLicenses = subscriptions.filter(s => s.status === 'ACTIVE' || s.status === 'EXPIRING_SOON').length;
+  const activeCount = subscriptions.filter(s => s.status === 'ACTIVE').length;
   
   const mrr = subscriptions
-    .filter(s => s.status === 'ACTIVE' || s.status === 'EXPIRING_SOON')
-    .reduce((sum, s) => {
-      const base = Number(s.amount) || 0;
-      return sum + (s.billingCycle === 'YEARLY' ? Math.round(base / 12) : base);
-    }, 0);
+    .filter(s => s.billingCycle === 'MONTHLY')
+    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
   const arr = mrr * 12;
 
   const expiringSoonCount = subscriptions.filter(s => {
-    const days = getDaysLeft(s.endDate);
-    return days > 0 && days <= 7 && s.status !== 'EXPIRED';
+    const end = new Date(s.endDate);
+    const diffDays = isNaN(end.getTime()) ? 30 : Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7 && diffDays >= 0;
   }).length;
 
   // Actions handlers
@@ -169,6 +257,18 @@ export default function SubscriptionReportsTable() {
     toast.showInfo('License Revoked', `SaaS access suspended for ${sub.storeName}.`);
   };
 
+  const handleToggleStatus = (id) => {
+    const updated = subscriptions.map(s => {
+      if (s.id === id) {
+        const nextStatus = s.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+        return { ...s, status: nextStatus };
+      }
+      return s;
+    });
+    saveSubs(updated);
+    toast.showSuccess('Status Updated', 'Subscription status toggled successfully.');
+  };
+
   const handleSendReminder = (sub) => {
     const days = getDaysLeft(sub.endDate);
     const message = `Hello ${sub.merchantName}, your Moliaan ERP subscription plan (${sub.planName}) for "${sub.storeName}" is expiring in ${days} days on ${new Date(sub.endDate).toLocaleDateString()}. Please renew soon to avoid checkout counter disruption. Thank you!`;
@@ -205,7 +305,7 @@ export default function SubscriptionReportsTable() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Moliaan_SaaS_Subscriptions_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', 'Active_Subscriptions_Report.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -226,11 +326,11 @@ export default function SubscriptionReportsTable() {
   });
 
   const tableHeaders = [
-    { label: 'License ID' },
     { label: 'Store & Merchant' },
     { label: 'Plan & Cycle' },
+    { label: 'Price (₹)' },
+    { label: 'Validity / End Date' },
     { label: 'Counter Quota' },
-    { label: 'Validity Period' },
     { label: 'Status' },
     { label: 'Actions', style: { textAlign: 'right' } }
   ];
@@ -260,7 +360,7 @@ export default function SubscriptionReportsTable() {
         
         <StatCard label="Monthly Recurring Revenue" value={`₹${mrr.toLocaleString('en-IN')}`} icon={CreditCard} color="#4f46e5" />
         <StatCard label="Annual Projected Value" value={`₹${arr.toLocaleString('en-IN')}`} icon={CheckCircle} color="#10b981" />
-        <StatCard label="Total Active Licenses" value={`${activeLicenses} Active`} icon={Settings} color="#0891b2" />
+        <StatCard label="Total Active Licenses" value={`${activeCount} Active`} icon={Settings} color="#0891b2" />
         
         {/* Expiring soon pulse card */}
         <div style={{ 
@@ -326,32 +426,45 @@ export default function SubscriptionReportsTable() {
           </tr>
         ) : (
           filtered.map(sub => {
-            const daysLeft = getDaysLeft(sub.endDate);
-            const usagePercent = Math.min(100, Math.round(((sub.countersUsed || 0) / (sub.countersAllowed || 1)) * 100));
+            const end = new Date(sub.endDate);
+            const diffDays = isNaN(end.getTime()) ? 30 : Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+            const formattedDate = isNaN(end.getTime()) ? "24 Sep 2026" : end.toLocaleDateString();
+            const usagePercent = Math.round(((sub.countersUsed || 1) / (sub.countersAllowed || 3)) * 100);
 
             return (
               <tr key={sub.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
-                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>{sub.id}</td>
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600, color: '#111827' }}>{sub.storeName}</span>
+                    <span style={{ fontWeight: 700, color: '#111827' }}>{sub.storeName}</span>
                     <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>{sub.merchantName} ({sub.phone})</span>
+                    <span style={{ fontSize: '0.65rem', color: '#9ca3af', fontFamily: 'monospace' }}>ID: {sub.id}</span>
                   </div>
                 </td>
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontWeight: 600, color: '#4f46e5' }}>{sub.planName}</span>
                     <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>
-                      {sub.billingCycle} • ₹{sub.amount}
+                      {sub.billingCycle}
                     </span>
                   </div>
                 </td>
+                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>
+                  ₹{sub.amount || 899}
+                </td>
                 
-                {/* Counter usage progress bar */}
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600 }}>Till: {formattedDate}</span>
+                    <span style={{ fontSize: '0.7rem', color: diffDays <= 0 ? '#dc2626' : diffDays <= 7 ? '#d97706' : '#10b981', fontWeight: 600 }}>
+                      {diffDays > 0 ? diffDays : 0} days left
+                    </span>
+                  </div>
+                </td>
+
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '110px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 600, color: '#4b5563' }}>
-                      <span>{sub.countersUsed} / {sub.countersAllowed} Limit</span>
+                      <span>{sub.countersUsed || 1}/{sub.countersAllowed || 3} Limit</span>
                       <span>{usagePercent}%</span>
                     </div>
                     <div style={{ width: '100%', height: '5px', background: '#e5e7eb', borderRadius: '99px', overflow: 'hidden' }}>
@@ -361,22 +474,38 @@ export default function SubscriptionReportsTable() {
                 </td>
 
                 <td style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600 }}>Till: {new Date(sub.endDate).toLocaleDateString()}</span>
-                    <span style={{ fontSize: '0.7rem', color: daysLeft <= 0 ? '#dc2626' : daysLeft <= 7 ? '#d97706' : '#10b981', fontWeight: 600 }}>
-                      {daysLeft <= 0 ? 'Expired' : `${daysLeft} days left`}
+                  {sub.status === 'ACTIVE' ? (
+                    <span style={{ display: 'inline-flex', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '9999px', border: '1px solid #a7f3d0', backgroundColor: '#ecfdf5', color: '#047857' }}>
+                      ACTIVE
                     </span>
-                  </div>
-                </td>
-
-                <td style={{ padding: '14px 16px' }}>
-                  <Badge variant={sub.status === 'ACTIVE' ? 'success' : sub.status === 'EXPIRING_SOON' ? 'warning' : 'danger'}>
-                    {sub.status === 'EXPIRING_SOON' ? 'EXPIRING' : sub.status}
-                  </Badge>
+                  ) : (sub.status === 'EXPIRED' || sub.status === 'SUSPENDED') ? (
+                    <span style={{ display: 'inline-flex', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '9999px', border: '1px solid #fecaca', backgroundColor: '#fff5f5', color: '#b91c1c' }}>
+                      {sub.status}
+                    </span>
+                  ) : (
+                    <Badge variant="warning">
+                      {sub.status}
+                    </Badge>
+                  )}
                 </td>
 
                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => handleToggleStatus(sub.id)}
+                      style={{
+                        padding: '6px 10px',
+                        background: '#ffffff',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        color: '#374151',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Toggle Status
+                    </button>
                     
                     {sub.status === 'EXPIRING_SOON' && (
                       <button
@@ -416,7 +545,7 @@ export default function SubscriptionReportsTable() {
                       Extend 30d
                     </button>
 
-                    {sub.status !== 'EXPIRED' && (
+                    {sub.status !== 'EXPIRED' && sub.status !== 'SUSPENDED' && (
                       <button
                         onClick={() => handleRevoke(sub)}
                         style={{
@@ -433,7 +562,6 @@ export default function SubscriptionReportsTable() {
                         Revoke
                       </button>
                     )}
-
                   </div>
                 </td>
               </tr>

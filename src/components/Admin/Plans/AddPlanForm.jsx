@@ -3,21 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
 import { ShieldCheck, Layers, Landmark, CreditCard, ChevronRight, HelpCircle } from 'lucide-react';
+import Select from '../../ui/Select';
 
 export default function AddPlanForm() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  // Check if WWE plan is already present to decide default form values
+  const checkWWEPlanExists = () => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
+      return existing.some(p => p.id === 'PLAN-WWE-899' || p.code === 'PLAN-WWE-899');
+    } catch (e) {
+      return false;
+    }
+  };
+  const hasWWEPlan = checkWWEPlanExists();
+
   // Form State
-  const [planName, setPlanName] = useState('');
-  const [planCode, setPlanCode] = useState('');
-  const [badge, setBadge] = useState('');
-  const [description, setDescription] = useState('');
+  const [planName, setPlanName] = useState(hasWWEPlan ? '' : 'WWE Pro Plan');
+  const [planCode, setPlanCode] = useState(hasWWEPlan ? '' : 'PLAN-WWE-899');
+  const [badge, setBadge] = useState(hasWWEPlan ? '' : 'Best Value');
+  const [description, setDescription] = useState(hasWWEPlan ? '' : 'WWE Pro SaaS Subscription Tier');
 
   // Pricing State
   const [billingFrequency, setBillingFrequency] = useState('MONTHLY'); // 'MONTHLY' | 'YEARLY'
-  const [monthlyPrice, setMonthlyPrice] = useState('');
-  const [yearlyPrice, setYearlyPrice] = useState('');
+  const [monthlyPrice, setMonthlyPrice] = useState(hasWWEPlan ? '' : '899');
+  const [yearlyPrice, setYearlyPrice] = useState(hasWWEPlan ? '' : '8999');
   const [trialDays, setTrialDays] = useState('14');
 
   // Quota Limits State
@@ -31,12 +43,12 @@ export default function AddPlanForm() {
 
   // Feature Checklist
   const [features, setFeatures] = useState({
-    sync: true,
-    gst: true,
-    khata: false,
+    sync: !hasWWEPlan,
+    gst: !hasWWEPlan,
+    khata: !hasWWEPlan,
     barcode: false,
-    branding: false,
-    support: false
+    branding: !hasWWEPlan,
+    support: !hasWWEPlan
   });
 
   // Dynamic slug generation
@@ -85,7 +97,7 @@ export default function AddPlanForm() {
     }
 
     const newPlan = {
-      id: `PLAN-${Date.now().toString().slice(-4)}`,
+      id: planCode || `PLAN-${Date.now().toString().slice(-4)}`,
       title: planName.trim(),
       code: planCode,
       badge: badge.trim(),
@@ -93,8 +105,8 @@ export default function AddPlanForm() {
       billingFrequency,
       monthlyPrice: mPrice,
       yearlyPrice: yPrice,
-      duration: billingFrequency === 'MONTHLY' ? 30 : 365, // Compatibility for existing components
-      deviceLimit: unlimitedTerminals ? 9999 : (parseInt(terminalLimit) || 3), // Compatibility for existing components
+      duration: billingFrequency === 'MONTHLY' ? 30 : 365,
+      deviceLimit: unlimitedTerminals ? 9999 : (parseInt(terminalLimit) || 3),
       trialDays: parseInt(trialDays),
       unlimitedTerminals,
       terminalLimit: unlimitedTerminals ? 'Unlimited' : (parseInt(terminalLimit) || 3),
@@ -103,16 +115,17 @@ export default function AddPlanForm() {
       invoiceLimit: unlimitedInvoices ? 'Unlimited' : (parseInt(invoiceLimit) || 1000),
       features,
       status: 'Active',
+      activeSubscribers: 0,
       createdDate: new Date().toISOString().split('T')[0]
     };
 
     const existingPlans = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
-    const updated = [...existingPlans, newPlan];
+    const updated = [newPlan, ...existingPlans];
     localStorage.setItem('erp_admin_plans', JSON.stringify(updated));
 
     // Audit Log
     logActivity({
-      activityType: 'SAAS_PLAN_CREATED',
+      activityType: 'PLAN_CREATED',
       module: 'Plans',
       actionDescription: `Created new SaaS pricing tier "${planName}" [Code: ${planCode}]`
     });
@@ -237,16 +250,16 @@ export default function AddPlanForm() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Free Trial Period</span>
-              <select
+              <Select
                 value={trialDays}
                 onChange={e => setTrialDays(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db', background: '#ffffff', cursor: 'pointer' }}
+                style={{ width: '100%' }}
               >
                 <option value="0">No Trial</option>
                 <option value="7">7 Days Trial</option>
                 <option value="14">14 Days Trial</option>
                 <option value="30">30 Days Trial</option>
-              </select>
+              </Select>
             </div>
           </div>
 
