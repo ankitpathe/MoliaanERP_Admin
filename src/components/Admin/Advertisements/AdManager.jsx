@@ -4,6 +4,8 @@ import { logActivity } from '../../../services/activityLogger';
 import { Megaphone, Play, Pause, Trash2, Plus, Download, Monitor, Eye, ExternalLink, Activity, Sparkles, Settings, Edit } from 'lucide-react';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import Select from '../../ui/Select';
+import AdImage from './AdImage';
+import { saveImage, deleteImage } from '../../../utils/imageStorage';
 
 const SEED_ADS = [
   {
@@ -58,6 +60,7 @@ export default function AdManager() {
   const [title, setTitle] = useState('');
   const [type, setType] = useState('VERTICAL');
   const [imageUrl, setImageUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [targetUrl, setTargetUrl] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [rotationSpeed, setRotationSpeed] = useState(5);
@@ -111,7 +114,13 @@ export default function AdManager() {
   }, []);
 
   const saveAds = (updated) => {
-    localStorage.setItem('erp_advertisements', JSON.stringify(updated));
+    try {
+      localStorage.setItem('erp_advertisements', JSON.stringify(updated));
+    } catch (err) {
+      if (err && err.name === 'QuotaExceededError') {
+        throw err; // re-throw so handleCreateOrUpdateCampaign can show the proper toast
+      }
+    }
     setAds(updated);
   };
 
@@ -144,17 +153,13 @@ export default function AdManager() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const limit = type === 'VERTICAL' ? 500 * 1024 : 250 * 1024;
-    if (file.size > limit) {
-      toast.showError('File Too Large', `File exceeds recommended limit of ${type === 'VERTICAL' ? '500KB' : '250KB'}.`);
+    if (file.size > 5 * 1024 * 1024) {
+      toast.showError('File Too Large', 'Image must be under 5MB');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageUrl(reader.result);
-      toast.showSuccess('File Loaded', 'Local image creative loaded successfully.');
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setImageUrl('LOCAL_FILE_SELECTED');
+    toast.showSuccess('File Loaded', 'Local image creative loaded successfully.');
   };
 
   const handleStartEditAd = (ad) => {
@@ -165,76 +170,108 @@ export default function AdManager() {
     setTargetUrl(ad.targetUrl);
     setPriority(ad.priority);
     setRotationSpeed(ad.rotationSpeed);
-    setUploadMode(ad.imageUrl.startsWith('data:') ? 'FILE' : 'URL');
+    setUploadMode(ad.imageStorageType === 'indexeddb' ? 'FILE' : 'URL');
+    setSelectedFile(null);
     setShowCreateModal(true);
   };
 
-  const handleCreateOrUpdateCampaign = (e) => {
+  const handleCreateOrUpdateCampaign = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !imageUrl.trim() || !targetUrl.trim()) {
-      toast.showError('Required', 'Please complete all required fields.');
+
+    if (!title.trim()) {
+      toast.showError('Required', 'Please enter a Campaign Title.');
+      return;
+    }
+    if (uploadMode === 'FILE' && !imageUrl && !selectedFile) {
+      toast.showError('Required', 'Please select an image file to upload.');
+      return;
+    }
+    if (uploadMode === 'URL' && !imageUrl.trim()) {
+      toast.showError('Required', 'Please enter a valid Image URL.');
+      return;
+    }
+    if (!targetUrl.trim()) {
+      toast.showError('Required', 'Please enter a CTA Target Link.');
       return;
     }
 
-    if (editingAd) {
-      const updated = ads.map(a => {
-        if (a.id === editingAd.id) {
-          return {
-            ...a,
-            title: title.trim(),
-            type,
-            imageUrl: imageUrl.trim(),
-            targetUrl: targetUrl.trim(),
-            priority,
-            rotationSpeed: Number(rotationSpeed) || 5
-          };
-        }
-        return a;
-      });
-      saveAds(updated);
-      logActivity({
-        activityType: 'AD_CAMPAIGN_UPDATED',
-        module: 'Advertisements',
-        actionDescription: `Updated ad campaign "${title}"`
-      });
-      toast.showSuccess('Campaign Updated', `Ad campaign "${title}" updated successfully.`);
-      setEditingAd(null);
-      setShowCreateModal(false);
-    } else {
-      const newAd = {
-        id: `AD-${Date.now().toString().slice(-4)}`,
+    try {
+      const campaignId = editingAd ? editingAd.id : `AD-${Date.now().toString().slice(-4)}`;
+      
+      let finalAdObject = {
+        id: campaignId,
         title: title.trim(),
         type,
-        imageUrl: imageUrl.trim(),
         targetUrl: targetUrl.trim(),
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
         priority,
-        status: 'ACTIVE',
-        impressions: 0,
-        clicks: 0,
         rotationSpeed: Number(rotationSpeed) || 5
       };
 
-      const updated = [...ads, newAd];
-      saveAds(updated);
+      if (uploadMode === 'FILE') {
+        if (selectedFile) {
+          await saveImage(campaignId, selectedFile);
+          finalAdObject.imageStorageType = 'indexeddb';
+          finalAdObject.imageId = campaignId;
+          finalAdObject.imageUrl = '';
+        } else {
+          // Editing, keeping existing file
+          finalAdObject.imageStorageType = editingAd ? (editingAd.imageStorageType || 'indexeddb') : 'indexeddb';
+          finalAdObject.imageId = editingAd ? (editingAd.imageId || campaignId) : campaignId;
+          finalAdObject.imageUrl = editingAd ? (editingAd.imageUrl || '') : '';
+        }
+      } else {
+        finalAdObject.imageStorageType = 'url';
+        finalAdObject.imageUrl = imageUrl.trim();
+        finalAdObject.imageId = null;
+      }
 
-      logActivity({
-        activityType: 'AD_CAMPAIGN_CREATED',
-        module: 'Advertisements',
-        actionDescription: `Created new ${type} ad campaign "${title}"`
-      });
+      if (editingAd) {
+        const updated = ads.map(a => (a.id === editingAd.id ? { ...a, ...finalAdObject } : a));
+        saveAds(updated);
+        logActivity({
+          activityType: 'AD_CAMPAIGN_UPDATED',
+          module: 'Advertisements',
+          actionDescription: `Updated ad campaign "${title}"`
+        });
+        toast.showSuccess('Campaign Updated', `Ad campaign "${title}" updated successfully.`);
+        setEditingAd(null);
+        setShowCreateModal(false);
+      } else {
+        const newAd = {
+          ...finalAdObject,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+          status: 'ACTIVE',
+          impressions: 0,
+          clicks: 0
+        };
 
-      toast.showSuccess('Campaign Created', `New ad campaign "${title}" is now active.`);
-      setShowCreateModal(false);
+        const updated = [...ads, newAd];
+        saveAds(updated);
+
+        logActivity({
+          activityType: 'AD_CAMPAIGN_CREATED',
+          module: 'Advertisements',
+          actionDescription: `Created new ${type} ad campaign "${title}"`
+        });
+
+        toast.showSuccess('Campaign Created', `New ad campaign "${title}" is now active.`);
+        setShowCreateModal(false);
+      }
+
+      // Reset Form
+      setTitle('');
+      setImageUrl('');
+      setTargetUrl('');
+      setPriority('Medium');
+      setRotationSpeed(5);
+      setUploadMode('FILE');
+      setSelectedFile(null);
+
+    } catch (err) {
+      toast.showError('Save Failed', 'An unexpected error occurred. Please try again.');
+      console.error('[AdManager] handleCreateOrUpdateCampaign error:', err);
     }
-
-    // Reset Form
-    setTitle('');
-    setImageUrl('');
-    setTargetUrl('');
-    setPriority('Medium');
-    setRotationSpeed(5);
   };
 
   // Idle screen policy save
@@ -258,8 +295,8 @@ export default function AdManager() {
   const handleIdleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 800 * 1024) {
-      toast.showError('File Too Large', 'File exceeds recommended limit of 800KB.');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.showError('File Too Large', 'File exceeds recommended limit of 5 MB.');
       return;
     }
     const reader = new FileReader();
@@ -290,8 +327,20 @@ export default function AdManager() {
   // Add or update idle banner
   const handleSaveIdleBanner = (e) => {
     e.preventDefault();
-    if (!newIdleTitle.trim() || !newIdleImageUrl.trim() || !newIdleTargetUrl.trim()) {
-      toast.showError('Required', 'Please fill in all banner fields.');
+    if (!newIdleTitle.trim()) {
+      toast.showError('Required', 'Please enter a Promo Title.');
+      return;
+    }
+    if (idleUploadMode === 'FILE' && !newIdleImageUrl) {
+      toast.showError('Required', 'Please select an image file to upload.');
+      return;
+    }
+    if (idleUploadMode === 'URL' && !newIdleImageUrl.trim()) {
+      toast.showError('Required', 'Please enter a valid image URL.');
+      return;
+    }
+    if (!newIdleTargetUrl.trim()) {
+      toast.showError('Required', 'Please enter a CTA Target URL.');
       return;
     }
 
@@ -915,8 +964,8 @@ export default function AdManager() {
               <span style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600 }}>Sky-scraper Slot (300x600)</span>
               <div style={{ width: '120px', height: '240px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                 {ads.find(a => a.type === 'VERTICAL' && a.status === 'ACTIVE') ? (
-                  <img 
-                    src={ads.find(a => a.type === 'VERTICAL' && a.status === 'ACTIVE').imageUrl} 
+                  <AdImage 
+                    ad={ads.find(a => a.type === 'VERTICAL' && a.status === 'ACTIVE')} 
                     alt="Vertical preview"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -932,8 +981,8 @@ export default function AdManager() {
               <span style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600 }}>Footer Slot (Banner Stripe)</span>
               <div style={{ width: '100%', height: '35px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                 {ads.find(a => a.type === 'HORIZONTAL' && a.status === 'ACTIVE') ? (
-                  <img 
-                    src={ads.find(a => a.type === 'HORIZONTAL' && a.status === 'ACTIVE').imageUrl} 
+                  <AdImage 
+                    ad={ads.find(a => a.type === 'HORIZONTAL' && a.status === 'ACTIVE')} 
                     alt="Horizontal preview"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -952,7 +1001,7 @@ export default function AdManager() {
       {showCreateModal && (
         <>
           <div 
-            onClick={() => { setEditingAd(null); setShowCreateModal(false); }}
+            onClick={() => { setEditingAd(null); setShowCreateModal(false); setTitle(''); setImageUrl(''); setTargetUrl(''); setUploadMode('FILE'); setSelectedFile(null); }}
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.2)', zIndex: 998 }}
           />
           <div style={{
@@ -1089,7 +1138,7 @@ export default function AdManager() {
                     <ul style={{ paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <li>Standard slot size: <strong style={{ color: '#0f172a' }}>300px x 600px</strong> (Aspect Ratio 1:2)</li>
                       <li>Recommended upload: <strong style={{ color: '#0f172a' }}>600px x 1200px</strong> (High-DPI / Retina)</li>
-                      <li>Recommended max file size: <strong style={{ color: '#0f172a' }}>500 KB</strong></li>
+                      <li>Recommended max file size: <strong style={{ color: '#0f172a' }}>5 MB</strong></li>
                     </ul>
                   </div>
                 ) : (
@@ -1143,7 +1192,7 @@ export default function AdManager() {
               <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginTop: '8px', justifyContent: 'flex-end' }}>
                 <button 
                   type="button" 
-                  onClick={() => { setEditingAd(null); setShowCreateModal(false); }}
+                  onClick={() => { setEditingAd(null); setShowCreateModal(false); setTitle(''); setImageUrl(''); setTargetUrl(''); setUploadMode('FILE'); setSelectedFile(null); }}
                   style={{ padding: '8px 16px', background: '#ffffff', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel

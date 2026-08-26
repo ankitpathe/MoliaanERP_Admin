@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
+import AdImage from '../Advertisements/AdImage';
 
 export default function AdminLayout({ sidebar, header, children }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -222,8 +223,8 @@ export default function AdminLayout({ sidebar, header, children }) {
                       boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                     }}
                   >
-                    <img 
-                      src={currentVertAd.imageUrl} 
+                    <AdImage 
+                      ad={currentVertAd} 
                       alt={currentVertAd.title}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
@@ -336,8 +337,8 @@ export default function AdminLayout({ sidebar, header, children }) {
                   position: 'relative'
                 }}
               >
-                <img 
-                  src={currentHorizAd.imageUrl} 
+                <AdImage 
+                  ad={currentHorizAd} 
                   alt={currentHorizAd.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
