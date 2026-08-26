@@ -329,7 +329,8 @@ export default function AdminLayout({ sidebar, header, children }) {
                 onClick={() => handleAdClick(currentHorizAd)}
                 style={{
                   width: '100%',
-                  height: '90px',
+                  height: 'auto',
+                  aspectRatio: '1456 / 180',
                   borderRadius: '8px',
                   border: '1px solid #e5e7eb',
                   overflow: 'hidden',
@@ -340,7 +341,7 @@ export default function AdminLayout({ sidebar, header, children }) {
                 <AdImage 
                   ad={currentHorizAd} 
                   alt={currentHorizAd.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
                 <span style={{
                   position: 'absolute',
