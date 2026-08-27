@@ -334,10 +334,20 @@ export default function AllPlansGrid() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
           {filtered.map(plan => {
             const isYearly = billingCycle === 'YEARLY';
-            const price = isYearly 
-              ? (Number(plan.yearlyPrice) || (Number(plan.monthlyPrice || plan.price || 0) * 10)) 
-              : (Number(plan.monthlyPrice || plan.price || 0));
-            const cycleText = isYearly ? '/ year' : '/ month';
+            let price = 0;
+            let cycleText = '';
+            if (plan.pricingTiers && typeof plan.pricingTiers === 'object') {
+              const tierKey = isYearly ? '1y' : '30d';
+              price = plan.pricingTiers[tierKey] !== undefined 
+                ? plan.pricingTiers[tierKey] 
+                : (Object.values(plan.pricingTiers)[0] || 0);
+              cycleText = `/ ${isYearly ? '1 Year' : '30 Days'}`;
+            } else {
+              price = isYearly 
+                ? (Number(plan.yearlyPrice) || (Number(plan.monthlyPrice || plan.price || 0) * 10)) 
+                : (Number(plan.monthlyPrice || plan.price || 0));
+              cycleText = isYearly ? '/ year' : '/ month';
+            }
 
             // Feature list mapping (support standard array or mapped features object)
             const featuresList = plan.features && typeof plan.features === 'object'

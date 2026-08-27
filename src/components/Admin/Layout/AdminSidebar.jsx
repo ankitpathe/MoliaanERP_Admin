@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import MoliaanLogo from '../../../assets/Moliaan-Full-Logo2.svg';
 import { 
@@ -19,17 +19,40 @@ import {
   Database,
   User,
   X,
-  Sparkles
+  Sparkles,
+  HelpCircle
 } from 'lucide-react';
 
 export default function AdminSidebar({ onCloseMobile }) {
   const location = useLocation();
+  const [openCount, setOpenCount] = useState(0);
+
+  useEffect(() => {
+    const checkRequests = () => {
+      const raw = localStorage.getItem('helpRequests') || '[]';
+      try {
+        const parsed = JSON.parse(raw);
+        const count = parsed.filter(r => r.status === 'open').length;
+        setOpenCount(count);
+      } catch (e) {
+        setOpenCount(0);
+      }
+    };
+    checkRequests();
+    window.addEventListener('storage', checkRequests);
+    window.addEventListener('help_requests_updated', checkRequests);
+    return () => {
+      window.removeEventListener('storage', checkRequests);
+      window.removeEventListener('help_requests_updated', checkRequests);
+    };
+  }, []);
 
   const menuSections = [
     {
       title: 'PLATFORM',
       items: [
-        { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard }
+        { id: 'dashboard', label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+        { id: 'help-requests', label: 'Help Requests', path: '/admin/help', icon: HelpCircle }
       ]
     },
     {
@@ -97,11 +120,11 @@ export default function AdminSidebar({ onCloseMobile }) {
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 16px',
-        background: 'rgba(255, 255, 255, 0.85)',
+        background: 'var(--bg-sidebar)',
         backdropFilter: 'blur(20px)',
         borderRadius: isMobile ? '24px' : '0px',
-        border: isMobile ? '1px solid rgba(255, 255, 255, 0.5)' : 'none',
-        borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
+        border: isMobile ? '1px solid var(--border-muted)' : 'none',
+        borderRight: isMobile ? 'none' : '1px solid var(--border-muted)',
         boxShadow: isMobile ? '0 10px 30px -15px rgba(0, 0, 0, 0.05)' : 'none',
         zIndex: 50,
       }}
@@ -179,27 +202,41 @@ export default function AdminSidebar({ onCloseMobile }) {
                     cursor: 'pointer',
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: isSelected ? '#7c3aed' : '#4b5563',
-                    background: isSelected ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
+                    color: isSelected ? '#7c3aed' : 'var(--text-muted)',
+                    background: isSelected ? 'var(--accent-primary-glow)' : 'transparent',
                     transition: 'all 0.2s ease',
                     textAlign: 'left',
                     textDecoration: 'none'
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = '#f3f4f6';
-                      e.currentTarget.style.color = '#1f2937';
+                      e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)';
+                      e.currentTarget.style.color = 'var(--text-primary)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#4b5563';
+                      e.currentTarget.style.color = 'var(--text-muted)';
                     }
                   }}
                 >
                   <Icon size={18} style={{ color: isSelected ? '#7c3aed' : '#6b7280' }} />
                   <span>{item.label}</span>
+                  {item.id === 'help-requests' && openCount > 0 && (
+                    <span style={{
+                      marginLeft: 'auto',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.675rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '99px',
+                      lineHeight: 1
+                    }}>
+                      {openCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

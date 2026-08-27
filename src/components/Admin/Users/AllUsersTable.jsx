@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
 import { Users, CheckCircle, ShieldAlert, Layers, Search, Download, Edit3, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -59,6 +60,7 @@ const SEED_USERS = [
 ];
 
 export default function AllUsersTable() {
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [users, setUsers] = useState([]);
@@ -393,7 +395,14 @@ export default function AllUsersTable() {
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <strong style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName || "WWE Arena Supermart"}</strong>
-                  <span style={{ fontSize: '0.725rem', color: '#4b5563' }}>{merchant.ownerName || "Ankit Pathe"}</span>
+                  <span 
+                    onClick={() => navigate(`/admin/users/${merchant.id}`)}
+                    style={{ fontSize: '0.725rem', color: '#7c3aed', cursor: 'pointer', fontWeight: 600 }}
+                    onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                    onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                  >
+                    {merchant.ownerName || "Ankit Pathe"}
+                  </span>
                   <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id || 'USR-101'}</span>
                 </div>
               </td>

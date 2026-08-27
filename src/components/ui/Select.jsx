@@ -104,7 +104,7 @@ export default function Select({
       {...props}
     >
       {label && (
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', marginBottom: '4px' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
           {label}
         </span>
       )}
@@ -119,21 +119,21 @@ export default function Select({
           padding: '8px 12px',
           fontSize: '0.85rem',
           borderRadius: '8px',
-          border: '1px solid #d1d5db',
-          background: '#ffffff',
-          color: selectedOption ? '#111827' : '#4b5563',
+          border: '1px solid var(--border-muted)',
+          background: 'var(--bg-control)',
+          color: selectedOption ? 'var(--text-primary)' : 'var(--text-muted)',
           cursor: 'pointer',
           userSelect: 'none',
           boxSizing: 'border-box',
           height: '38px',
           boxShadow: isOpen ? '0 0 0 2px rgba(124, 58, 237, 0.2)' : 'none',
-          borderColor: isOpen ? '#7c3aed' : '#d1d5db'
+          borderColor: isOpen ? '#7c3aed' : 'var(--border-muted)'
         }}
       >
         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown size={14} style={{ color: '#6b7280', flexShrink: 0, marginLeft: '8px' }} />
+        <ChevronDown size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '8px' }} />
       </div>
 
       {/* Dropdown open state */}
@@ -143,10 +143,10 @@ export default function Select({
           top: label ? 'calc(100% - 2px)' : 'calc(100% + 4px)',
           left: 0,
           right: 0,
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-muted)',
           borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
           zIndex: 9999,
           maxHeight: '220px',
           overflowY: 'auto',
@@ -154,7 +154,7 @@ export default function Select({
           boxSizing: 'border-box'
         }}>
           {parsedOptions.length === 0 ? (
-            <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#9ca3af' }}>
+            <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               No options
             </div>
           ) : (
@@ -172,8 +172,8 @@ export default function Select({
                     justifyContent: 'space-between',
                     padding: '8px 12px',
                     fontSize: '0.825rem',
-                    color: isSelected ? '#7c3aed' : '#374151',
-                    background: isSelected ? '#f5f3ff' : isFocused ? '#f9fafb' : 'transparent',
+                    color: isSelected ? '#7c3aed' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--accent-primary-glow)' : isFocused ? 'var(--bg-control-hover)' : 'transparent',
                     fontWeight: isSelected ? 600 : 400,
                     cursor: 'pointer',
                     userSelect: 'none'

@@ -53,8 +53,9 @@ export default function ConfirmDialog({
           transform: 'translate(-50%, -50%)',
           width: 'calc(100% - 32px)',
           maxWidth: '420px',
-          background: '#ffffff',
+          background: 'var(--bg-card)',
           borderRadius: '16px',
+          border: '1px solid var(--border-muted)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           padding: '24px',
           zIndex: 9999,
@@ -84,10 +85,10 @@ export default function ConfirmDialog({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               {title}
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: '1.5', margin: 0 }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
               {message}
             </p>
           </div>

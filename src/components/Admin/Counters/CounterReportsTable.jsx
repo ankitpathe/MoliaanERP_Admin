@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { Monitor, Activity, Radio, RefreshCw, Eye, Edit, Trash2, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toggleCounterStatus, simulateOfflineTransactions } from '../../../utils/syncSimulator';
 
 // Shared UI components import
 import Card from '../../../components/ui/Card';
@@ -145,17 +146,36 @@ export default function CounterReportsTable() {
     };
   }, []);
 
-  const handleToggleStatus = (id) => {
-    const updated = counters.map(c => {
-      if (c.id === id) {
-        const nextStatus = String(c.status).toUpperCase() === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
-        return { ...c, status: nextStatus };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem('erp_admin_counters');
+      if (raw) {
+        const list = JSON.parse(raw);
+        const { updated, changed } = simulateOfflineTransactions(list);
+        if (changed) {
+          localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+          localStorage.setItem('counters', JSON.stringify(updated));
+          setCounters(updated);
+        }
       }
-      return c;
-    });
-    setCounters(updated);
-    localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
-    toast.showSuccess('Status Updated', 'Terminal status toggled successfully.');
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [counters]);
+
+  const handleToggleStatus = (id) => {
+    const current = counters.find(c => c.id === id);
+    if (!current) return;
+
+    const { updatedCounters, nextStatus, processedCount, counterName } = toggleCounterStatus(counters, id, current.status);
+
+    setCounters(updatedCounters);
+    localStorage.setItem('erp_admin_counters', JSON.stringify(updatedCounters));
+    localStorage.setItem('counters', JSON.stringify(updatedCounters));
+
+    toast.showSuccess('Status Updated', `Terminal "${counterName}" is now ${nextStatus}`);
+    if (processedCount > 0) {
+      toast.showSuccess('Sync Processing', `Synced ${processedCount} queued transactions from ${counterName}`);
+    }
   };
 
   const handleDeleteCounter = (id, name) => {
@@ -318,24 +338,47 @@ export default function CounterReportsTable() {
                   display: isVisible ? 'table-row' : 'none'
                 }}
               >
-                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>{c.name || 'Unnamed Counter'}</td>
+                <td style={{ padding: '14px 16px' }}>
+                  <span 
+                    onClick={() => navigate(`/admin/counters/${c.id}`)}
+                    style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', transition: 'color 0.15s' }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.textDecoration = 'underline';
+                      e.currentTarget.style.color = '#6d28d9';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.textDecoration = 'none';
+                      e.currentTarget.style.color = '#7c3aed';
+                    }}
+                  >
+                    {c.name || 'Unnamed Counter'}
+                    <span style={{ color: '#9ca3af', marginLeft: '6px', fontSize: '0.85rem', fontWeight: 'normal' }}>›</span>
+                  </span>
+                </td>
                 <td style={{ padding: '14px 16px', fontWeight: 600 }}>{c.code || 'N/A'}</td>
                 <td style={{ padding: '14px 16px' }}>{c.location || 'Main Store'}</td>
                 <td style={{ padding: '14px 16px', fontWeight: 500 }}>{c.assignedStaff || 'Staff'}</td>
                 <td style={{ padding: '14px 16px' }}>{c.printerType || 'Thermal 80mm'}</td>
                 <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                  <Badge variant={isOnline ? 'success' : 'danger'}>
-                    {isOnline ? 'ONLINE' : 'OFFLINE'}
-                  </Badge>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <Badge variant={isOnline ? 'success' : 'danger'}>
+                      {isOnline ? 'ONLINE' : 'OFFLINE'}
+                    </Badge>
+                    {!isOnline && c.offlineQueue && c.offlineQueue.length > 0 && (
+                      <span style={{ fontSize: '0.675rem', color: '#ef4444', fontWeight: 700, background: '#fee2e2', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fca5a5' }}>
+                        {c.offlineQueue.length} queued
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                     <Button
-                      variant={isOnline ? 'secondary' : 'primary'}
+                      variant={isOnline ? 'secondary' : 'success'}
                       onClick={() => handleToggleStatus(c.id)}
-                      style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                      style={!isOnline ? { color: '#10b981', borderColor: '#10b981', background: '#f0fdf4', padding: '4px 8px', fontSize: '0.75rem' } : { padding: '4px 8px', fontSize: '0.75rem' }}
                     >
-                      Toggle Status
+                      {isOnline ? 'Set Offline' : 'Set Online'}
                     </Button>
                     <button 
                       onClick={() => {

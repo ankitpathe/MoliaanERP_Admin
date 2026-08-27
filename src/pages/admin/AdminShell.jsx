@@ -6,7 +6,23 @@ import AdminHeader from '../../components/Admin/Layout/AdminHeader';
 
 export default function AdminShell() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [theme, setTheme] = useState('light'); // 'light' or 'dark'
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('erp_theme');
+    if (saved) {
+      if (saved === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return saved;
+    }
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (prefersDark) {
+      document.documentElement.classList.add('dark');
+      return 'dark';
+    }
+    return 'light';
+  });
   const location = useLocation();
 
   const getHeaderTitle = () => {

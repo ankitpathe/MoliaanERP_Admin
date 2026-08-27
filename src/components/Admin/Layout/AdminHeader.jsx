@@ -32,9 +32,35 @@ export default function AdminHeader({
     return localStorage.getItem('erp_theme') === 'dark' || 
            document.documentElement.classList.contains('dark');
   });
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
 
   // Notifications states
   const [notifications, setNotifications] = useState([]);
+  const [adminInfo, setAdminInfo] = useState({
+    name: 'Ankit Pathe',
+    role: 'Super Administrator',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+  });
+
+  const loadAdminInfo = () => {
+    try {
+      const storedProfile = JSON.parse(localStorage.getItem('erp_admin_profile') || '{}');
+      const storedSession = JSON.parse(localStorage.getItem('erp_user_session') || '{}');
+      setAdminInfo({
+        name: storedProfile.name || storedSession.name || 'Ankit Pathe',
+        role: storedProfile.role || storedSession.role || 'Super Administrator',
+        avatar: storedProfile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'
+      });
+    } catch (e) {
+      // fallback
+    }
+  };
+
+  useEffect(() => {
+    loadAdminInfo();
+    window.addEventListener('admin_profile_updated', loadAdminInfo);
+    return () => window.removeEventListener('admin_profile_updated', loadAdminInfo);
+  }, []);
   const [hasUnread, setHasUnread] = useState(true);
 
   // Search states
@@ -91,8 +117,18 @@ export default function AdminHeader({
 
   // Load live notifications
   useEffect(() => {
+    const reqs = JSON.parse(localStorage.getItem('helpRequests') || '[]');
+    const openReqsMapped = reqs.filter(r => r.status === 'open').map(r => ({
+      id: r.id,
+      title: `Help Request - ${r.priority.toUpperCase()}`,
+      text: `${r.senderName} (${r.senderType}): "${r.subject}"`,
+      time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+      unread: true,
+      isHelpRequest: true
+    }));
+
     const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
-    const mapped = logs.slice(0, 5).map((log, idx) => ({
+    const logsMapped = logs.slice(0, 5).map((log, idx) => ({
       id: log.id || idx,
       title: log.module || 'System Activity',
       text: log.actionDescription,
@@ -100,8 +136,9 @@ export default function AdminHeader({
       unread: true
     }));
 
-    if (mapped.length > 0) {
-      setNotifications(mapped);
+    const merged = [...openReqsMapped, ...logsMapped];
+    if (merged.length > 0) {
+      setNotifications(merged);
     } else {
       setNotifications([
         { id: 1, title: 'POS-01 Online', text: 'Counter POS-01 has successfully synchronized.', time: '2 mins ago', unread: true },
@@ -232,12 +269,7 @@ export default function AdminHeader({
     navigate('/');
   };
 
-  const storedSession = JSON.parse(localStorage.getItem('erp_user_session') || '{}');
-  const adminInfo = {
-    name: storedSession.name || 'Administrator',
-    role: storedSession.role || 'ADMIN',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=128&h=128&auto=format&fit=crop',
-  };
+
 
   return (
     <header 
@@ -246,8 +278,8 @@ export default function AdminHeader({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '12px 24px',
-        background: '#ffffff',
-        borderBottom: '1px solid #f3f4f6',
+        background: 'var(--bg-sidebar)',
+        borderBottom: '1px solid var(--border-muted)',
         position: 'sticky',
         top: 0,
         zIndex: 100,
@@ -279,30 +311,33 @@ export default function AdminHeader({
         )}
 
         {/* Active Branch Selector Custom Dropdown */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => {
-              setBranchMenuOpen(!branchMenuOpen);
-              setRouteMenuOpen(false);
-            }}
-            style={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: '#374151',
-              background: '#f3f4f6',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              outline: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            <span>{branch}</span>
-            <ChevronDown size={12} style={{ color: '#6b7280' }} />
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => {
+                setBranchMenuOpen(!branchMenuOpen);
+                setRouteMenuOpen(false);
+              }}
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                background: 'var(--bg-control)',
+                border: '1px solid var(--border-muted)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                outline: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                height: '36px',
+                boxSizing: 'border-box'
+              }}
+            >
+              <span>{branch}</span>
+              <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+            </button>
 
           {branchMenuOpen && (
             <>
@@ -362,79 +397,24 @@ export default function AdminHeader({
                 ))}
               </div>
             </>
-          )}
+           )}
         </div>
-
-        {/* Compact Route Breadcrumb with quick switch chevron */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>
-            Counters &gt; Reports
-          </span>
-          <button
-            onClick={() => {
-              setRouteMenuOpen(!routeMenuOpen);
-              setBranchMenuOpen(false);
-            }}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-          >
-            <ChevronDown size={14} style={{ color: '#9ca3af', transform: routeMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-          </button>
-
-          {routeMenuOpen && (
-            <>
-              <div onClick={() => setRouteMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} />
-              <div style={{
-                position: 'absolute',
-                top: '24px',
-                left: 0,
-                width: '180px',
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                padding: '4px',
-                zIndex: 999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px'
-              }}>
-                {[
-                  { name: 'Dashboard', path: '/admin/dashboard' },
-                  { name: 'Terminal Reports', path: '/admin/counters/reports' },
-                  { name: 'SaaS Plans Pricing', path: '/admin/plans' },
-                  { name: 'Subscription Requests', path: '/admin/plans/requests' },
-                  { name: 'Merchants Registry', path: '/admin/users' },
-                  { name: 'Data Sync Diagnostic', path: '/admin/data-sync/report' }
-                ].map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setRouteMenuOpen(false);
-                      navigate(item.path);
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '6px 8px',
-                      fontSize: '0.725rem',
-                      fontWeight: 600,
-                      color: '#374151',
-                      background: 'transparent',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      width: '100%'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+        <span style={{ 
+          fontSize: '0.7rem', 
+          fontWeight: 700, 
+          color: 'var(--text-muted)', 
+          background: 'var(--bg-control)', 
+          border: '1px solid var(--border-muted)', 
+          padding: '4px 8px', 
+          borderRadius: '6px', 
+          height: '24px', 
+          display: 'inline-flex', 
+          alignItems: 'center',
+          whiteSpace: 'nowrap'
+        }}>
+          {getShiftIndicator().replace('Shift ', '')}
+        </span>
+      </div>      </div>
 
       {/* CENTER SECTION (Universal Omnisearch) */}
       <div style={{ 
@@ -457,12 +437,14 @@ export default function AdminHeader({
             padding: '8px 60px 8px 36px',
             fontSize: '0.8rem',
             borderRadius: '99px',
-            border: searchFocused ? '1px solid #7c3aed' : '1px solid #e5e7eb',
-            background: '#fafafa',
+            height: '36px',
+            boxSizing: 'border-box',
+            border: searchFocused ? '1px solid var(--border-active)' : '1px solid var(--border-muted)',
+            background: 'var(--bg-control)',
             outline: 'none',
-            color: '#1f2937',
+            color: 'var(--text-primary)',
             transition: 'all 0.2s ease',
-            boxShadow: searchFocused ? '0 0 0 3px rgba(124, 58, 237, 0.15)' : 'none'
+            boxShadow: searchFocused ? '0 0 0 3px var(--border-glow)' : 'none'
           }}
         />
         <Search 
@@ -547,115 +529,36 @@ export default function AdminHeader({
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         
         {/* Live Telemetry Pill */}
-        <button
-          onClick={() => navigate('/admin/counters/reports')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 10px',
-            borderRadius: '99px',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            background: '#d1fae5',
-            color: '#065f46',
-            border: '1px solid #a7f3d0',
-            cursor: 'pointer'
-          }}
-        >
-          <span style={{
-            display: 'inline-block',
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background: '#10b981',
-            animation: 'pulse 1.5s infinite'
-          }} />
-          {onlineTelemetry.online}/{onlineTelemetry.total} Counters Online
-        </button>
-
-        {/* Sync Status Pill */}
-        <button
+        {/* Unified Status Indicator */}
+        <div 
           onClick={() => navigate('/admin/data-sync/report')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '4px',
-            padding: '4px 10px',
-            borderRadius: '99px',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            background: '#eff6ff',
-            color: '#1d4ed8',
-            border: '1px solid #bfdbfe',
-            cursor: 'pointer'
-          }}
-        >
-          ⚡ Realtime Sync OK
-        </button>
-
-        {/* Date & Shift Badge */}
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: '#f3f4f6',
-          padding: '4px 10px',
-          borderRadius: '8px',
-          fontSize: '0.725rem',
-          fontWeight: 600,
-          color: '#4b5563'
-        }}>
-          <span>{getFormattedDate()}</span>
-          <span style={{ color: '#9ca3af' }}>|</span>
-          <span style={{ color: '#4f46e5', fontWeight: 700 }}>{getShiftIndicator()}</span>
-        </span>
-
-        {/* Sync/Refresh */}
-        <button
-          onClick={handleRefresh}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
+            gap: '8px',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            fontSize: '0.725rem',
+            fontWeight: 600,
+            background: 'var(--bg-control)',
+            border: '1px solid var(--border-muted)',
+            color: 'var(--text-muted)',
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            color: '#4b5563',
-            transition: 'background-color 0.2s ease'
+            height: '36px',
+            boxSizing: 'border-box'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
-          title="Refresh Data"
+          title="Terminal Network Status & Sync Health"
         >
-          <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-        </button>
-
-        {/* Fullscreen Button */}
-        <button
-          onClick={handleToggleFullscreen}
-          style={{
-            width: '32px',
-            height: '32px',
+          <span style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
             borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            color: '#4b5563',
-            transition: 'background-color 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
-          title="Toggle Fullscreen"
-        >
-          <Maximize2 size={14} />
-        </button>
+            background: '#10b981',
+            animation: 'pulse 1.5s infinite'
+          }} />
+          <span className="header-status-label">{onlineTelemetry.online}/{onlineTelemetry.total} Online • Synced</span>
+        </div>
 
         {/* Notification Bell with Dropdown */}
         <div style={{ position: 'relative' }}>
@@ -762,13 +665,22 @@ export default function AdminHeader({
                   {notifications.map((n, i) => (
                     <div 
                       key={n.id || i} 
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        if (n.isHelpRequest) {
+                          navigate(`/admin/help?id=${n.id}`);
+                        } else {
+                          navigate('/admin/activity-logs');
+                        }
+                      }}
                       style={{ 
                         display: 'flex', 
                         gap: '8px', 
                         padding: '6px 8px', 
                         borderRadius: '8px', 
                         background: n.unread ? '#f5f3ff' : 'transparent',
-                        alignItems: 'flex-start'
+                        alignItems: 'flex-start',
+                        cursor: 'pointer'
                       }}
                     >
                       <Activity size={12} style={{ color: '#7c3aed', marginTop: '2px', flexShrink: 0 }} />
@@ -809,28 +721,156 @@ export default function AdminHeader({
           )}
         </div>
 
-        {/* Settings gear */}
-        <button
-          onClick={() => navigate('/admin/master-data')}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            color: '#4b5563',
-            transition: 'background-color 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
-          title="System Settings"
-        >
-          <Settings size={15} />
-        </button>
+        {/* Settings gear dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => {
+              setSettingsMenuOpen(!settingsMenuOpen);
+              setNotificationsOpen(false);
+              setProfileDropdownOpen(false);
+            }}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid var(--border-muted)',
+              background: 'var(--bg-control)',
+              color: 'var(--text-muted)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
+            title="Settings & Options"
+          >
+            <Settings size={15} />
+          </button>
+          
+          {settingsMenuOpen && (
+            <>
+              <div 
+                onClick={() => setSettingsMenuOpen(false)}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+              />
+              <div style={{
+                position: 'absolute',
+                right: 0,
+                top: 'calc(100% + 8px)',
+                width: '180px',
+                padding: '4px',
+                zIndex: 999,
+                borderRadius: '8px',
+                border: '1px solid var(--border-muted)',
+                background: 'var(--bg-card)',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}>
+                <button
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    navigate('/admin/master-data');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Settings size={14} /> System Settings
+                </button>
+                <button
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    handleRefresh();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> Refresh Data
+                </button>
+                <button
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    handleToggleFullscreen();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Maximize2 size={14} /> Toggle Fullscreen
+                </button>
+                <button
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    toggleTheme();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {isDarkMode ? <Sun size={14} style={{ color: '#d97706' }} /> : <Moon size={14} />} 
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
 
 
@@ -842,12 +882,13 @@ export default function AdminHeader({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '4px 8px',
+              padding: '2px',
               cursor: 'pointer',
-              borderRadius: '12px',
+              borderRadius: '99px',
               border: 'none',
               background: 'transparent',
-              textAlign: 'left'
+              textAlign: 'left',
+              height: '36px'
             }}
           >
             <img 
@@ -855,15 +896,9 @@ export default function AdminHeader({
               alt={adminInfo.name} 
               style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} 
             />
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: '70px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1f2937', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                {adminInfo.name}
-                <ChevronDown size={12} style={{ color: '#9ca3af', transform: profileDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
-              </span>
-              <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '-2px', fontWeight: 600 }}>
-                {adminInfo.role}
-              </span>
-            </div>
+            <span className="header-admin-name" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {adminInfo.name}
+            </span>
           </button>
 
           {profileDropdownOpen && (

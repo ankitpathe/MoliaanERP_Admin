@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../../hooks/useToast';
 import { logActivity } from '../../../services/activityLogger';
-import { Monitor, UserCheck, Cpu, Key, CheckSquare, Square } from 'lucide-react';
+import { Monitor, UserCheck, Cpu, Key, CheckSquare, Square, Eye, EyeOff, User, KeyRound } from 'lucide-react';
 import Select from '../../ui/Select';
+import Button from '../../ui/Button';
 
 const DUMMY_MERCHANTS = [
   { id: 'M-101', name: 'Gourmet Kitchen' },
@@ -14,43 +15,64 @@ const DUMMY_MERCHANTS = [
 
 export default function AddCounterForm() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const toast = useToast();
 
   // Form State
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [location, setLocation] = useState('');
-  const [assignedStaff, setAssignedStaff] = useState([]);
-  const [printerType, setPrinterType] = useState('Thermal 80mm');
 
-  // Lists
-  const [usersList, setUsersList] = useState([]);
+  // Operator Personal Info
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+
+  // Operator Security Settings
+  const [operatorUsername, setOperatorUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Errors State
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    // Load Users for staff assignment
-    const storedUsers = JSON.parse(localStorage.getItem('erp_users') || '[]');
-    if (storedUsers.length === 0) {
-      const dummyStaff = [
-        { username: 'john_cashier', name: 'John Doe' },
-        { username: 'sarah_billing', name: 'Sarah Connor' },
-        { username: 'mike_kiosk', name: 'Mike Miller' }
-      ];
-      setUsersList(dummyStaff);
-    } else {
-      setUsersList(storedUsers.map(u => ({ username: u.username, name: u.name || u.username })));
-    }
-  }, []);
-
-  const handleToggleStaff = (username) => {
-    if (assignedStaff.includes(username)) {
-      setAssignedStaff(prev => prev.filter(u => u !== username));
-    } else {
-      setAssignedStaff(prev => [...prev, username]);
+  const handleFullNameChange = (val) => {
+    setFullName(val);
+    if (errors.fullName) setErrors(prev => ({ ...prev, fullName: null }));
+    if (!id) {
+      const suggested = val.toLowerCase().trim().replace(/\s+/g, '.');
+      setOperatorUsername(suggested);
+      if (errors.operatorUsername) setErrors(prev => ({ ...prev, operatorUsername: null }));
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || localStorage.getItem('counters') || '[]');
+      const found = existing.find(c => 
+        String(c.id).toLowerCase() === String(id).toLowerCase() || 
+        String(c.code).toLowerCase() === String(id).toLowerCase()
+      );
+      if (found) {
+        setName(found.name || '');
+        setCode(found.code || '');
+        setLocation(found.location || '');
+
+        if (found.operator) {
+          setFullName(found.operator.fullName || '');
+          setPhone(found.operator.phone || '');
+          setEmail(found.operator.email || '');
+          setEmployeeId(found.operator.employeeId || '');
+          setOperatorUsername(found.operator.username || '');
+          setPassword(found.operator.password || '');
+          setConfirmPassword(found.operator.password || '');
+        }
+      }
+    }
+  }, [id]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -59,8 +81,34 @@ export default function AddCounterForm() {
     if (!name.trim()) {
       newErrors.name = 'Counter Name is required';
     }
-    if (!code.trim()) {
-      newErrors.code = 'Counter Code is required';
+
+
+    // Operator Personal Info Validation
+    if (!fullName.trim()) {
+      newErrors.fullName = 'Full Name is required';
+    }
+    if (!phone.trim()) {
+      newErrors.phone = 'Phone Number is required';
+    } else if (!/^\d{10}$/.test(phone.trim())) {
+      newErrors.phone = 'Phone Number must be exactly 10 digits';
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Invalid Email address format';
+    }
+
+    // Operator Security Settings Validation
+    if (!operatorUsername.trim()) {
+      newErrors.operatorUsername = 'Username/Login ID is required';
+    }
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Confirmation Password is required';
+    } else if (confirmPassword !== password) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -70,31 +118,63 @@ export default function AddCounterForm() {
     }
 
     try {
-      const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
+      const existing = JSON.parse(localStorage.getItem('erp_admin_counters') || localStorage.getItem('counters') || '[]');
       
-      const newCounter = {
-        id: "CTR-" + Date.now().toString().slice(-4),
-        name: name.trim(),
-        code: code.trim() || ("POS-" + name.toUpperCase().slice(0, 4)),
-        location: location.trim() || "Main Retail Outlet",
-        assignedStaff: assignedStaff.join(', ') || "Default Cashier",
-        printerType: printerType || "Thermal 80mm ESC/POS",
-        status: "ONLINE",
-        totalBillsToday: 0,
-        grossSalesToday: 0,
-        lastHeartbeat: new Date().toISOString()
+      // TODO: hash password before storing when backend is added
+      const operatorObj = {
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        employeeId: employeeId.trim(),
+        username: operatorUsername.trim(),
+        password: password
       };
 
-      const updated = [newCounter, ...existing]; // PREPEND new counter record
+      let updated;
+      if (id) {
+        updated = existing.map(c => {
+          if (String(c.id).toLowerCase() === String(id).toLowerCase() || String(c.code).toLowerCase() === String(id).toLowerCase()) {
+            return {
+              ...c,
+              name: name.trim(),
+              code: code.trim(),
+              location: location.trim(),
+              operator: operatorObj
+            };
+          }
+          return c;
+        });
+
+        logActivity({
+          activityType: 'COUNTER_MODIFIED',
+          module: 'Counters',
+          actionDescription: `Updated billing terminal ${name.trim()}`
+        });
+        toast.showSuccess('Success', `Updated billing terminal ${name.trim()}`);
+      } else {
+        const newCounter = {
+          id: "CTR-" + Date.now().toString().slice(-4),
+          name: name.trim(),
+          code: code.trim() || ("POS-" + name.toUpperCase().slice(0, 4)),
+          location: location.trim() || "Main Retail Outlet",
+          status: "ONLINE",
+          totalBillsToday: 0,
+          grossSalesToday: 0,
+          lastHeartbeat: new Date().toISOString(),
+          operator: operatorObj
+        };
+        updated = [newCounter, ...existing];
+
+        logActivity({
+          activityType: 'COUNTER_REGISTERED',
+          module: 'Counters',
+          actionDescription: `Registered new billing terminal ${newCounter.name}`
+        });
+        toast.showSuccess('Success', `Registered new billing terminal ${newCounter.name}`);
+      }
+
       localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
-
-      logActivity({
-        activityType: 'COUNTER_REGISTERED',
-        module: 'Counters',
-        actionDescription: `Registered new billing terminal ${newCounter.name}`
-      });
-
-      toast.showSuccess('Success', `Registered new billing terminal ${newCounter.name}`);
+      localStorage.setItem('counters', JSON.stringify(updated));
       
       setTimeout(() => {
         navigate('/admin/counters/reports');
@@ -112,13 +192,13 @@ export default function AddCounterForm() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Admin / Counters / New
+            {id ? 'Admin / Counters / Edit' : 'Admin / Counters / New'}
           </span>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>
-            Add Counter
+            {id ? 'Edit Counter' : 'Add Counter'}
           </h2>
           <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-            Register a new POS counter and assign it to a location.
+            {id ? 'Modify registration settings and terminal mapping.' : 'Register a new POS counter and assign it to a location.'}
           </span>
         </div>
 
@@ -177,7 +257,7 @@ export default function AddCounterForm() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Code *</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Code (Optional)</span>
               <input 
                 type="text" 
                 value={code}
@@ -219,86 +299,231 @@ export default function AddCounterForm() {
           </div>
         </div>
 
-        {/* Section 2: Printer Setup */}
+
+        {/* Section 4: Personal Information */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Cpu size={18} style={{ color: '#7c3aed' }} />
+            <User size={18} style={{ color: '#7c3aed' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Section 2 - Hardware & Printer Setup
+              PERSONAL INFORMATION
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Printer Type</span>
-              <Select
-                value={printerType}
-                onChange={e => setPrinterType(e.target.value)}
-                style={{ width: '100%' }}
-              >
-                <option value="Thermal 80mm">Thermal 80mm</option>
-                <option value="Thermal 58mm">Thermal 58mm</option>
-                <option value="Laser A4">Laser A4</option>
-                <option value="Dot Matrix">Dot Matrix</option>
-              </Select>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Full Name *</span>
+              <input 
+                type="text" 
+                value={fullName}
+                onChange={e => handleFullNameChange(e.target.value)}
+                placeholder="e.g. Ramesh Sharma"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.fullName ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+              {errors.fullName && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.fullName}</span>}
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Phone Number *</span>
+              <input 
+                type="text" 
+                value={phone}
+                onChange={e => {
+                  setPhone(e.target.value);
+                  if (errors.phone) setErrors(prev => ({ ...prev, phone: null }));
+                }}
+                placeholder="e.g. 9876543210"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.phone ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+              {errors.phone && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.phone}</span>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Email Address</span>
+              <input 
+                type="text" 
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+                }}
+                placeholder="e.g. cashier@example.com"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.email ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+              {errors.email && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.email}</span>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Employee ID / Staff Code</span>
+              <input 
+                type="text" 
+                value={employeeId}
+                onChange={e => setEmployeeId(e.target.value)}
+                placeholder="e.g. EMP-2026-90"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Section 3: Access & Assignment */}
+        {/* Section 5: Security Settings */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <UserCheck size={18} style={{ color: '#7c3aed' }} />
+            <KeyRound size={18} style={{ color: '#7c3aed' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Section 3 - Access & Assignment
+              SECURITY SETTINGS
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Assign Staff (Select multiple)</span>
-              <div style={{
-                maxHeight: '120px',
-                overflowY: 'auto',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                padding: '8px',
-                background: '#ffffff',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }}>
-                {usersList.map(u => {
-                  const isChecked = assignedStaff.includes(u.username);
-                  return (
-                    <div 
-                      key={u.username}
-                      onClick={() => handleToggleStaff(u.username)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                        color: '#374151',
-                        padding: '4px 6px',
-                        borderRadius: '4px'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      {isChecked ? <CheckSquare size={16} className="text-violet-600" /> : <Square size={16} className="text-slate-400" />}
-                      <span>{u.name} ({u.username})</span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Username / Login ID *</span>
+              <input 
+                type="text" 
+                value={operatorUsername}
+                onChange={e => {
+                  setOperatorUsername(e.target.value);
+                  if (errors.operatorUsername) setErrors(prev => ({ ...prev, operatorUsername: null }));
+                }}
+                placeholder="e.g. ramesh.sharma"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: errors.operatorUsername ? '1px solid #dc2626' : '1px solid #d1d5db',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  background: '#ffffff'
+                }}
+              />
+              {errors.operatorUsername && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.operatorUsername}</span>}
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>New Password *</span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  value={password}
+                  onChange={e => {
+                    setPassword(e.target.value);
+                    if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+                  }}
+                  placeholder="Min 6 characters"
+                  style={{
+                    padding: '10px 40px 10px 14px',
+                    borderRadius: '8px',
+                    border: errors.password ? '1px solid #dc2626' : '1px solid #d1d5db',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    background: '#ffffff',
+                    width: '100%'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {errors.password && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.password}</span>}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Confirm Password *</span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type={showConfirmPassword ? 'text' : 'password'} 
+                  value={confirmPassword}
+                  onChange={e => {
+                    setConfirmPassword(e.target.value);
+                    if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: null }));
+                  }}
+                  placeholder="Re-enter password"
+                  style={{
+                    padding: '10px 40px 10px 14px',
+                    borderRadius: '8px',
+                    border: errors.confirmPassword ? '1px solid #dc2626' : '1px solid #d1d5db',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    background: '#ffffff',
+                    width: '100%'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {errors.confirmPassword && <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>{errors.confirmPassword}</span>}
+            </div>
           </div>
+          
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={() => {
+              if (password && confirmPassword && password === confirmPassword && password.length >= 6) {
+                toast.showSuccess('Credentials Set', 'Login credentials verified.');
+              } else {
+                toast.showError('Verification Failed', 'Please verify your password entries.');
+              }
+            }}
+            style={{ alignSelf: 'flex-start', marginTop: '8px' }}
+          >
+            {id ? 'Update Password' : 'Set Login Credentials'}
+          </Button>
         </div>
 
         {/* Footer Actions */}
@@ -319,7 +544,7 @@ export default function AddCounterForm() {
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
-            Save Counter
+            {id ? 'Update Counter' : 'Save Counter'}
           </button>
           
           <button 

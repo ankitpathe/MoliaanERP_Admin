@@ -3,10 +3,10 @@ import React from 'react';
 export default function StatCard({ label, value, icon: Icon, color = '#7c3aed' }) {
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'var(--bg-card)',
       padding: '16px 20px',
       borderRadius: '12px',
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--border-muted)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -14,8 +14,8 @@ export default function StatCard({ label, value, icon: Icon, color = '#7c3aed' }
       boxSizing: 'border-box'
     }}>
       <div>
-        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>{label}</span>
-        <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: '4px 0 0 0' }}>{value}</h4>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+        <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{value}</h4>
       </div>
       {Icon && (
         <div style={{

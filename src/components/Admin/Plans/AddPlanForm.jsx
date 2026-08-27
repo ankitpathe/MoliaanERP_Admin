@@ -9,35 +9,30 @@ export default function AddPlanForm() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Check if WWE plan is already present to decide default form values
-  const checkWWEPlanExists = () => {
-    try {
-      const existing = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
-      return existing.some(p => p.id === 'PLAN-WWE-899' || p.code === 'PLAN-WWE-899');
-    } catch (e) {
-      return false;
-    }
-  };
-  const hasWWEPlan = checkWWEPlanExists();
-
   // Form State
   const [planName, setPlanName] = useState('');
   const [planCode, setPlanCode] = useState('');
+  const [isPlanCodeTouched, setIsPlanCodeTouched] = useState(false);
   const [badge, setBadge] = useState('');
   const [description, setDescription] = useState('');
 
-  // Pricing State
-  const [billingFrequency, setBillingFrequency] = useState('MONTHLY'); // 'MONTHLY' | 'YEARLY'
-  const [monthlyPrice, setMonthlyPrice] = useState('');
-  const [yearlyPrice, setYearlyPrice] = useState('');
+  // 6 Billing Durations Pricing Tiers State
+  const [pricingTiers, setPricingTiers] = useState({
+    '7d': '',
+    '14d': '',
+    '30d': '',
+    '90d': '',
+    '6m': '',
+    '1y': ''
+  });
+  const [activeTab, setActiveTab] = useState('30d');
+  const [recommendedDuration, setRecommendedDuration] = useState('30d');
   const [trialDays, setTrialDays] = useState('14');
 
   // Quota Limits State
   const [unlimitedTerminals, setUnlimitedTerminals] = useState(false);
   const [terminalLimit, setTerminalLimit] = useState('');
-  
   const [staffLimit, setStaffLimit] = useState('');
-  
   const [unlimitedInvoices, setUnlimitedInvoices] = useState(false);
   const [invoiceLimit, setInvoiceLimit] = useState('');
 
@@ -51,25 +46,69 @@ export default function AddPlanForm() {
     support: false
   });
 
-  // Dynamic slug generation
-  const handleNameChange = (name) => {
-    setPlanName(name);
-    const slug = name
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    setPlanCode(slug ? `PLAN_${slug}` : '');
+  const durationLabels = {
+    '7d': '7 Days',
+    '14d': '14 Days',
+    '30d': '30 Days',
+    '90d': '90 Days',
+    '6m': '6 Months',
+    '1y': '1 Year'
   };
 
-  // Savings % Calculation
-  const getSavingsPercentage = () => {
-    const m = parseFloat(monthlyPrice) || 0;
-    const y = parseFloat(yearlyPrice) || 0;
-    if (m <= 0 || y <= 0) return 0;
-    const fullMonthlyCost = m * 12;
-    const saved = fullMonthlyCost - y;
-    if (saved <= 0) return 0;
-    return Math.round((saved / fullMonthlyCost) * 100);
+  const nameSuggestions = {
+    '7d': ["7-Day Trial Pack", "Weekly Starter", "Quick Start Plan"],
+    '14d': ["14-Day Starter", "Fortnight Plan", "Two-Week Trial"],
+    '30d': ["Monthly Starter", "Monthly Pro", "Monthly Business"],
+    '90d': ["Quarterly Pro", "90-Day Growth Plan", "Quarterly Business"],
+    '6m': ["Half-Yearly Plan", "6-Month Business", "Half-Yearly Pro"],
+    '1y': ["Annual Elite", "Yearly Business", "Annual Pro Plan"]
+  };
+
+  const durationDays = {
+    '7d': 7,
+    '14d': 14,
+    '30d': 30,
+    '90d': 90,
+    '6m': 180,
+    '1y': 365
+  };
+
+  // Dynamic slug / plan code generation
+  const handleNameChange = (name) => {
+    setPlanName(name);
+    if (!isPlanCodeTouched) {
+      suggestPlanCode(name, activeTab);
+    }
+  };
+
+  const suggestPlanCode = (nameVal, tabVal) => {
+    const firstWord = nameVal.trim().split(' ')[0] || '';
+    const cleanWord = firstWord.toUpperCase().replace(/[^A-Z0-9]+/g, '');
+    const suffix = tabVal.toUpperCase();
+    if (cleanWord) {
+      setPlanCode(`PLAN-${cleanWord}-${suffix}`);
+    } else {
+      setPlanCode('');
+    }
+  };
+
+  // Keep code synced with active tab if untouched
+  useEffect(() => {
+    if (!isPlanCodeTouched && planName.trim()) {
+      suggestPlanCode(planName, activeTab);
+    }
+  }, [activeTab]);
+
+  // Savings % Calculation compared to 7d base rate scaled linearly
+  const getSavingsPercentage = (durKey) => {
+    const basePrice = parseFloat(pricingTiers['7d']);
+    const targetPrice = parseFloat(pricingTiers[durKey]);
+    if (!basePrice || !targetPrice || durKey === '7d') return 0;
+    
+    const days = durationDays[durKey];
+    const scaledBase = (basePrice / 7) * days;
+    if (targetPrice >= scaledBase) return 0;
+    return Math.round(((scaledBase - targetPrice) / scaledBase) * 100);
   };
 
   const handleToggleFeature = (key) => {
@@ -79,22 +118,34 @@ export default function AddPlanForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validations
     if (!planName.trim()) {
       toast.showError('Validation Error', 'Plan Name is required.');
       return;
     }
-    const mPrice = parseFloat(monthlyPrice) || 0;
-    const yPrice = parseFloat(yearlyPrice) || 0;
-    if (mPrice <= 0 || yPrice <= 0) {
-      toast.showError('Validation Error', 'Pricing values must be greater than 0.');
+
+    // Step 5: At least one duration's price must be filled
+    const filledTiers = Object.entries(pricingTiers).filter(([_, val]) => val.trim() !== '');
+    if (filledTiers.length === 0) {
+      toast.showError('Validation Error', 'Add at least one pricing option.');
       return;
     }
+
+    // Format all prices to float
+    const cleanPricing = {};
+    Object.entries(pricingTiers).forEach(([k, v]) => {
+      if (v.trim() !== '') {
+        cleanPricing[k] = parseFloat(v);
+      }
+    });
+
     const selectedFeaturesCount = Object.values(features).filter(Boolean).length;
     if (selectedFeaturesCount === 0) {
       toast.showError('Validation Error', 'Please select at least 1 feature.');
       return;
     }
+
+    // Fallbacks for display compat
+    const samplePrice = cleanPricing['30d'] || Object.values(cleanPricing)[0] || 0;
 
     const newPlan = {
       id: planCode || `PLAN-${Date.now().toString().slice(-4)}`,
@@ -102,10 +153,13 @@ export default function AddPlanForm() {
       code: planCode,
       badge: badge.trim(),
       description: description.trim(),
-      billingFrequency,
-      monthlyPrice: mPrice,
-      yearlyPrice: yPrice,
-      duration: billingFrequency === 'MONTHLY' ? 30 : 365,
+      // Legacy compatibility keys
+      monthlyPrice: cleanPricing['30d'] || samplePrice,
+      yearlyPrice: cleanPricing['1y'] || (samplePrice * 10),
+      billingFrequency: cleanPricing['30d'] ? 'MONTHLY' : 'YEARLY',
+      // New schema keys
+      pricingTiers: cleanPricing,
+      recommendedDuration,
       deviceLimit: unlimitedTerminals ? 9999 : (parseInt(terminalLimit) || 3),
       trialDays: parseInt(trialDays),
       unlimitedTerminals,
@@ -123,18 +177,15 @@ export default function AddPlanForm() {
     const updated = [newPlan, ...existingPlans];
     localStorage.setItem('erp_admin_plans', JSON.stringify(updated));
 
-    // Audit Log
     logActivity({
       activityType: 'PLAN_CREATED',
       module: 'Plans',
-      actionDescription: `Created new SaaS pricing tier "${planName}" [Code: ${planCode}]`
+      actionDescription: `Created new SaaS pricing tier "${planName}" with multi-duration options. [Code: ${planCode}]`
     });
 
     toast.showSuccess('Plan Published', `SaaS plan "${planName}" is now live.`);
     navigate('/admin/plans');
   };
-
-  const savings = getSavingsPercentage();
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '24px', boxSizing: 'border-box' }}>
@@ -162,6 +213,34 @@ export default function AddPlanForm() {
                 style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
                 required
               />
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                {(nameSuggestions[activeTab] || []).map(suggestion => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleNameChange(suggestion)}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.675rem',
+                      fontWeight: 600,
+                      borderRadius: '12px',
+                      border: '1px solid #ddd6fe',
+                      background: '#f5f3ff',
+                      color: '#7c3aed',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#ede9fe';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#f5f3ff';
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -169,8 +248,12 @@ export default function AddPlanForm() {
               <input
                 type="text"
                 value={planCode}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db', background: '#f9fafb', color: '#6b7280' }}
-                readOnly
+                onChange={e => {
+                  setPlanCode(e.target.value);
+                  setIsPlanCodeTouched(true);
+                }}
+                placeholder="Suggested dynamically"
+                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db', background: '#ffffff' }}
               />
             </div>
           </div>
@@ -179,7 +262,7 @@ export default function AddPlanForm() {
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Badge / Tag (Optional)</span>
             <input
               type="text"
-              placeholder="e.g. Recommended, Most Popular"
+              placeholder="e.g. Best Value, Recommended"
               value={badge}
               onChange={e => setBadge(e.target.value)}
               style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
@@ -207,45 +290,64 @@ export default function AddPlanForm() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Billing Frequency</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setBillingFrequency('MONTHLY')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    background: billingFrequency === 'MONTHLY' ? '#1f2937' : '#ffffff',
-                    color: billingFrequency === 'MONTHLY' ? '#ffffff' : '#374151',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingFrequency('YEARLY')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    background: billingFrequency === 'YEARLY' ? '#1f2937' : '#ffffff',
-                    color: billingFrequency === 'YEARLY' ? '#ffffff' : '#374151',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Yearly
-                </button>
-              </div>
+          {/* 6 Billing Durations Tabs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Billing Duration Options</span>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {Object.entries(durationLabels).map(([key, label]) => {
+                const isSelected = activeTab === key;
+                const hasPrice = pricingTiers[key] !== '';
+                const isRecommended = recommendedDuration === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setActiveTab(key)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '30px',
+                      border: isSelected ? '2px solid #7c3aed' : '1px solid #d1d5db',
+                      background: isSelected ? '#f5f3ff' : '#ffffff',
+                      color: isSelected ? '#7c3aed' : '#374151',
+                      fontSize: '0.775rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {isRecommended && <span style={{ color: '#f59e0b' }}>★</span>}
+                    {label}
+                    {hasPrice && <span style={{ color: '#10b981', fontSize: '0.7rem' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active Tab Price Input with Auto-discount calculation badge */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
+                Price for {durationLabels[activeTab]} (₹) *
+                {getSavingsPercentage(activeTab) > 0 && (
+                  <span style={{ background: '#d1fae5', color: '#065f46', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                    Save {getSavingsPercentage(activeTab)}%
+                  </span>
+                )}
+              </span>
+              <input
+                type="number"
+                placeholder="Enter price amount"
+                value={pricingTiers[activeTab]}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPricingTiers(prev => ({ ...prev, [activeTab]: val }));
+                }}
+                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -256,44 +358,24 @@ export default function AddPlanForm() {
                 style={{ width: '100%' }}
               >
                 <option value="0">No Trial</option>
+                <option value="3">3 Days Trial</option>
                 <option value="7">7 Days Trial</option>
                 <option value="14">14 Days Trial</option>
-                <option value="30">30 Days Trial</option>
               </Select>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Monthly Price (₹) *</span>
-              <input
-                type="number"
-                placeholder="e.g. 999"
-                value={monthlyPrice}
-                onChange={e => setMonthlyPrice(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
-                Yearly Price (₹) *
-                {savings > 0 && (
-                  <span style={{ background: '#d1fae5', color: '#065f46', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                    Save {savings}%
-                  </span>
-                )}
-              </span>
-              <input
-                type="number"
-                placeholder="e.g. 9999"
-                value={yearlyPrice}
-                onChange={e => setYearlyPrice(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
-                required
-              />
-            </div>
+          {/* Recommended Option dropdown */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Highlight Recommended Duration</span>
+            <Select 
+              value={recommendedDuration}
+              onChange={e => setRecommendedDuration(e.target.value)}
+            >
+              {Object.entries(durationLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </Select>
           </div>
         </div>
 
@@ -307,7 +389,6 @@ export default function AddPlanForm() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {/* POS Terminals */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
                 POS Terminals / Counters Limit
@@ -337,7 +418,6 @@ export default function AddPlanForm() {
               />
             </div>
 
-            {/* Staff Cashiers */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Allowed Staff Accounts / Cashiers</span>
               <input
@@ -350,7 +430,6 @@ export default function AddPlanForm() {
             </div>
           </div>
 
-          {/* Invoices Limit */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
               Monthly Invoices Quota
@@ -456,7 +535,7 @@ export default function AddPlanForm() {
 
       </form>
 
-      {/* Right Column: Sticky Live Pricing Card Preview */}
+      {/* Right Column: Premium Live Pricing Card Preview */}
       <div style={{ position: 'sticky', top: '80px', height: 'fit-content' }}>
         <div style={{
           background: 'linear-gradient(to bottom right, #ffffff, #fafafa)',
@@ -466,11 +545,11 @@ export default function AddPlanForm() {
           boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '24px',
+          gap: '20px',
           position: 'relative'
         }}>
-          {/* Badge */}
-          {badge.trim() && (
+          {/* Best Value Star Ribbon */}
+          {badge.trim() ? (
             <span style={{
               position: 'absolute',
               top: '20px',
@@ -486,6 +565,24 @@ export default function AddPlanForm() {
             }}>
               {badge}
             </span>
+          ) : (
+            recommendedDuration === activeTab && (
+              <span style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: '#f59e0b',
+                color: '#ffffff',
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                padding: '3px 10px',
+                borderRadius: '99px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                ★ Best Value
+              </span>
+            )
           )}
 
           {/* Pricing Header */}
@@ -501,21 +598,63 @@ export default function AddPlanForm() {
             </span>
           </div>
 
-          <div style={{ height: '1px', background: '#e5e7eb' }} />
+          {/* Preview Tabs to switch between duration prices */}
+          <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px' }}>
+            {Object.entries(durationLabels).map(([key, label]) => {
+              const isActive = activeTab === key;
+              const hasPrice = pricingTiers[key] !== '';
+              return (
+                <span
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.675rem',
+                    fontWeight: 700,
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    background: isActive ? '#f5f3ff' : 'transparent',
+                    color: isActive ? '#7c3aed' : '#9ca3af',
+                    opacity: hasPrice ? 1 : 0.4
+                  }}
+                >
+                  {label}
+                </span>
+              );
+            })}
+          </div>
 
-          {/* Dynamic Billing Switch Indicator */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '2.25rem', fontWeight: 800, color: '#111827' }}>
-                ₹{(billingFrequency === 'MONTHLY' ? (parseFloat(monthlyPrice) || 0) : (parseFloat(yearlyPrice) || 0)).toLocaleString('en-IN')}
+          {/* Premium price display */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%)', 
+            border: '1px solid #ddd6fe', 
+            borderRadius: '12px', 
+            padding: '16px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '4px' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 900, color: '#7c3aed' }}>
+                ₹{pricingTiers[activeTab] ? parseFloat(pricingTiers[activeTab]).toLocaleString('en-IN') : '0'}
               </span>
-              <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 600 }}>
-                / {billingFrequency === 'MONTHLY' ? 'month' : 'year'}
+              <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 700 }}>
+                / {durationLabels[activeTab]}
               </span>
+              {getSavingsPercentage(activeTab) > 0 && (
+                <span style={{ background: '#10b981', color: '#ffffff', fontSize: '0.65rem', padding: '2px 8px', borderRadius: '99px', fontWeight: 800, marginLeft: '6px' }}>
+                  Save {getSavingsPercentage(activeTab)}%
+                </span>
+              )}
             </div>
+            {pricingTiers[activeTab] && (
+              <span style={{ fontSize: '0.725rem', color: '#6b7280', fontWeight: 600 }}>
+                ≈ ₹{(parseFloat(pricingTiers[activeTab]) / durationDays[activeTab]).toFixed(0)} / day equivalent
+              </span>
+            )}
             {trialDays !== '0' && (
-              <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                Includes {trialDays} Days Free Trial period
+              <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700, marginTop: '4px' }}>
+                Includes {trialDays} Days Free Trial
               </span>
             )}
           </div>

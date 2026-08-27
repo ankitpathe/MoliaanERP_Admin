@@ -9,10 +9,12 @@ import Dashboard from '../pages/Admin/Dashboard/Index';
 
 // Merchants
 import Users from '../pages/Admin/Users/Index';
+import UserDetail from '../pages/Admin/Users/Detail';
 
 // Terminal Counters
 import AddCounter from '../pages/Admin/Counters/New';
 import CounterReports from '../pages/Admin/Counters/Reports';
+import CounterDetail from '../pages/Admin/Counters/Detail';
 
 // SaaS Plans & Subscriptions
 import AllPlans from '../pages/Admin/Plans/Index';
@@ -36,6 +38,9 @@ import MasterData from '../pages/Admin/Audit/MasterData';
 // Promotions / Advertisements
 import Advertisements from '../pages/Admin/Advertisements/Index';
 
+// Help Requests
+import HelpInbox from '../pages/Admin/Help/Inbox';
+
 // Profile Account
 import Profile from '../pages/Admin/Profile/Profile';
 
@@ -53,10 +58,13 @@ export default function AppRoutes() {
         
         {/* Merchants / All Users */}
         <Route path="users" element={<Users />} />
+        <Route path="users/:id" element={<UserDetail />} />
         
         {/* Terminal Counters */}
         <Route path="counters/new" element={<AddCounter />} />
         <Route path="counters/reports" element={<CounterReports />} />
+        <Route path="counters/:id" element={<CounterDetail />} />
+        <Route path="counters/edit/:id" element={<AddCounter />} />
         
         {/* SaaS Subscriptions */}
         <Route path="plans" element={<AllPlans />} />
@@ -82,6 +90,9 @@ export default function AppRoutes() {
 
         {/* Promotions / Advertisements */}
         <Route path="advertisements" element={<Advertisements />} />
+
+        {/* Help Requests Inbox */}
+        <Route path="help" element={<HelpInbox />} />
       </Route>
 
       {/* Fallback Redirect */}

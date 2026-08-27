@@ -19,6 +19,15 @@ import {
   MousePointerClick
 } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
+import { logActivity } from '../../../services/activityLogger';
+import { simulateOfflineTransactions } from '../../../utils/syncSimulator';
+
+// Shared UI components
+import Card from '../../ui/Card';
+import StatCard from '../../ui/StatCard';
+import Button from '../../ui/Button';
+import Badge from '../../ui/Badge';
+import Table from '../../ui/Table';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -35,16 +44,13 @@ export default function AdminDashboard() {
     recentLogs: []
   });
 
-  const [subRequests, setSubRequests] = useState([
-    { id: 'SUB-9021', merchant: 'Organic Foods Co.', plan: 'Enterprise Pro', date: '2026-08-25', status: 'Pending' },
-    { id: 'SUB-9022', merchant: 'Metro Pharmacy LLC', plan: 'Growth Basic', date: '2026-08-24', status: 'Pending' }
-  ]);
+  const [subRequests, setSubRequests] = useState([]);
+  const [recentMerchants, setRecentMerchants] = useState([]);
 
-  const [recentMerchants, setRecentMerchants] = useState([
-    { id: 'M-701', name: 'Apex Retail Store', plan: 'Enterprise Pro', joined: '2026-08-22', status: 'Active' },
-    { id: 'M-702', name: 'Daily Grocery Hub', plan: 'Standard POS', joined: '2026-08-23', status: 'Active' },
-    { id: 'M-703', name: 'Wellness Medicos', plan: 'Growth Basic', joined: '2026-08-24', status: 'Inactive' }
-  ]);
+  // Telemetry simulation states
+  const [pingLatency, setPingLatency] = useState(14);
+  const [lastSyncText, setLastSyncText] = useState('Just now');
+  const [offlineQueuedTerminalsAlert, setOfflineQueuedTerminalsAlert] = useState('');
 
   // Idle Ads Config state
   const [isIdle, setIsIdle] = useState(false);
@@ -70,50 +76,132 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // 1. Counters
-    const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
-    const totalCounters = counters.length;
-    const onlineCounters = counters.filter(c => String(c.status).toUpperCase() === 'ONLINE').length;
+    const loadDashboardData = () => {
+      // 1. Counters
+      const counters = JSON.parse(localStorage.getItem('erp_admin_counters') || '[]');
+      const totalCounters = counters.length;
+      const onlineCounters = counters.filter(c => String(c.status).toUpperCase() === 'ONLINE').length;
 
-    // 2. Plans
-    const plans = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
-    const activePlans = plans.filter(p => String(p.status).toUpperCase() === 'ACTIVE').length || 3;
+      // Calculate offline queue warning
+      const offlineWithQueue = counters.filter(c => c.status === 'OFFLINE' && c.offlineQueue?.length > 0);
+      if (offlineWithQueue.length > 0) {
+        const totalPending = offlineWithQueue.reduce((sum, c) => sum + (c.offlineQueue?.length || 0), 0);
+        setOfflineQueuedTerminalsAlert(`⚠ ${offlineWithQueue.length} terminal${offlineWithQueue.length > 1 ? 's' : ''} offline with ${totalPending} pending sync item${totalPending > 1 ? 's' : ''}.`);
+      } else {
+        setOfflineQueuedTerminalsAlert('');
+      }
 
-    // 3. Merchants/Users
-    const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-    const totalMerchants = users.length;
+      // 2. Plans
+      const plans = JSON.parse(localStorage.getItem('erp_admin_plans') || '[]');
+      const activePlans = plans.filter(p => String(p.status).toUpperCase() === 'ACTIVE').length || 3;
 
-    // 4. Sync status
-    const syncLogs = JSON.parse(localStorage.getItem('erp_sync_logs') || '[]');
-    const pendingSyncs = syncLogs.filter(s => ['PENDING', 'WARNING', 'FAILED', 'QUEUED'].includes(String(s.status).toUpperCase())).length;
+      // 3. Merchants/Users
+      const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
+      const totalMerchants = users.length;
 
-    // 5. Gross Platform Volume (Sales)
-    const rawSales = localStorage.getItem('erp_sales') || localStorage.getItem('sales') || localStorage.getItem('invoices') || '[]';
-    const sales = JSON.parse(rawSales);
-    const grossVolume = sales.reduce((sum, s) => sum + (Number(s.grandTotal || s.total) || 0), 0);
+      // 4. Sync status
+      const syncLogs = JSON.parse(localStorage.getItem('erp_sync_logs') || '[]');
+      const pendingSyncs = syncLogs.filter(s => ['PENDING', 'WARNING', 'FAILED', 'QUEUED'].includes(String(s.status).toUpperCase())).length;
 
-    // 6. Low stock alert count
-    const products = JSON.parse(localStorage.getItem('erp_products') || '[]');
-    const lowStockCount = products.filter(p => Number(p.stock) <= 10).length || 0;
+      // Calculate relative heartbeat timestamp from sync logs
+      if (syncLogs.length > 0) {
+        const sorted = [...syncLogs].sort((a, b) => new Date(b.timestamp || b.time || 0) - new Date(a.timestamp || a.time || 0));
+        const latest = sorted[0];
+        if (latest && (latest.timestamp || latest.time)) {
+          setLastSyncText(formatLogTime(latest.timestamp || latest.time));
+        }
+      } else {
+        setLastSyncText('3m ago');
+      }
 
-    // 7. Recent logs (Developer Audit) - Sort by date descending
-    const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
-    const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
-    const recentLogs = sortedLogs.slice(0, 3).map(l => ({
-      ...l,
-      timeFormatted: formatLogTime(l.timestamp || l.createdAt)
-    }));
+      // Simulated network latency on load
+      setPingLatency(Math.floor(12 + Math.random() * 26));
 
-    setMetrics({
-      totalCounters,
-      onlineCounters,
-      activePlans,
-      totalMerchants,
-      pendingSyncs,
-      grossVolume,
-      lowStockCount,
-      recentLogs
-    });
+      // 5. Gross Platform Volume
+      const rawSales = localStorage.getItem('erp_sales') || localStorage.getItem('sales') || localStorage.getItem('invoices') || '[]';
+      const sales = JSON.parse(rawSales);
+      const grossVolume = sales.reduce((sum, s) => sum + (Number(s.grandTotal || s.total) || 0), 0);
+
+      // 6. Low stock alert count
+      const products = JSON.parse(localStorage.getItem('erp_products') || '[]');
+      const lowStockCount = products.filter(p => Number(p.stock) <= 10).length || 0;
+
+      // 7. Recent logs
+      const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
+      const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
+      const recentLogs = sortedLogs.slice(0, 3).map(l => ({
+        ...l,
+        timeFormatted: formatLogTime(l.timestamp || l.createdAt)
+      }));
+
+      setMetrics({
+        totalCounters,
+        onlineCounters,
+        activePlans,
+        totalMerchants,
+        pendingSyncs,
+        grossVolume,
+        lowStockCount,
+        recentLogs
+      });
+
+      // 8. Load subscription requests
+      const rawReqs = localStorage.getItem('erp_admin_sub_requests');
+      let reqsList = [];
+      if (rawReqs) {
+        reqsList = JSON.parse(rawReqs);
+      }
+      if (!reqsList || reqsList.length === 0) {
+        reqsList = [
+          {
+            id: "REQ-2026-101",
+            merchantName: "Aman Gupta",
+            storeName: "Gupta Supermart",
+            phone: "9876543210",
+            email: "aman@guptamart.com",
+            planId: "PLAN-PRO",
+            planName: "Gold Pro",
+            billingCycle: "YEARLY",
+            amount: 6999,
+            paymentMode: "UPI / PhonePe",
+            utrNumber: "UPI202688491290",
+            paymentProofUrl: "",
+            requestedAt: new Date(Date.now() - 3600000).toISOString(),
+            status: "PENDING"
+          },
+          {
+            id: "REQ-2026-102",
+            merchantName: "Pooja Verma",
+            storeName: "Verma Organic Store",
+            phone: "9811223344",
+            email: "pooja@vermaorganics.in",
+            planId: "PLAN-BASIC",
+            planName: "Silver Starter",
+            billingCycle: "MONTHLY",
+            amount: 299,
+            paymentMode: "Bank IMPS",
+            utrNumber: "IMPS7736184920",
+            paymentProofUrl: "",
+            requestedAt: new Date(Date.now() - 14400000).toISOString(),
+            status: "PENDING"
+          }
+        ];
+        localStorage.setItem('erp_admin_sub_requests', JSON.stringify(reqsList));
+      }
+      setSubRequests(reqsList);
+
+      // 9. Load recent merchants
+      const sortedUsers = [...users].sort((a, b) => new Date(b.registeredDate || b.joined || b.createdAt || 0) - new Date(a.registeredDate || a.joined || a.createdAt || 0));
+      const recentList = sortedUsers.slice(0, 4).map(u => ({
+        id: u.id,
+        name: u.storeName || u.name || 'Unnamed Merchant',
+        plan: u.planName || u.plan || 'No Active Plan',
+        status: u.status || 'Active'
+      }));
+      setRecentMerchants(recentList);
+    };
+
+    loadDashboardData();
 
     // Load Idle Ads config
     const rawConfig = localStorage.getItem('erp_ad_config');
@@ -143,6 +231,30 @@ export default function AdminDashboard() {
       clearTimeout(timeoutId);
       events.forEach(e => window.removeEventListener(e, resetTimer));
     };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem('erp_admin_counters');
+      if (raw) {
+        const list = JSON.parse(raw);
+        const { updated, changed } = simulateOfflineTransactions(list);
+        if (changed) {
+          localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+          localStorage.setItem('counters', JSON.stringify(updated));
+          
+          // Re-trigger alert calculation
+          const offlineWithQueue = updated.filter(c => c.status === 'OFFLINE' && c.offlineQueue?.length > 0);
+          if (offlineWithQueue.length > 0) {
+            const totalPending = offlineWithQueue.reduce((sum, c) => sum + (c.offlineQueue?.length || 0), 0);
+            setOfflineQueuedTerminalsAlert(`⚠ ${offlineWithQueue.length} terminal${offlineWithQueue.length > 1 ? 's' : ''} offline with ${totalPending} pending sync item${totalPending > 1 ? 's' : ''}.`);
+          } else {
+            setOfflineQueuedTerminalsAlert('');
+          }
+        }
+      }
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const activeBannersToRender = (adConfig.activeBanners || []).filter(b => b.status === 'ACTIVE').length > 0
@@ -179,14 +291,47 @@ export default function AdminDashboard() {
   };
 
   const handleApproveRequest = (id, merchant) => {
-    setSubRequests(prev => prev.filter(r => r.id !== id));
+    const raw = localStorage.getItem('erp_admin_sub_requests') || '[]';
+    const reqs = JSON.parse(raw);
+    const matchedReq = reqs.find(r => r.id === id);
+    if (!matchedReq) return;
+
+    const updated = reqs.map(r => r.id === id ? { ...r, status: 'APPROVED' } : r);
+    localStorage.setItem('erp_admin_sub_requests', JSON.stringify(updated));
+    setSubRequests(updated);
+
+    // Update merchant plan in users list
+    const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
+    const updatedUsers = users.map(u => {
+      if (u.storeName === matchedReq.storeName || u.name === matchedReq.merchantName) {
+        return { ...u, planName: matchedReq.planName, planId: matchedReq.planId, status: 'Active' };
+      }
+      return u;
+    });
+    localStorage.setItem('erp_users', JSON.stringify(updatedUsers));
+
+    // Audit logs
+    logActivity({
+      activityType: 'SUBSCRIPTION_REQUEST_APPROVED',
+      module: 'Subscriptions',
+      actionDescription: `Approved plan "${matchedReq.planName}" upgrade request for ${matchedReq.storeName} (${matchedReq.merchantName})`
+    });
+
     toast.showSuccess('Approved', `Subscription request for "${merchant}" approved successfully.`);
   };
 
   const handleRejectRequest = (id, merchant) => {
-    setSubRequests(prev => prev.filter(r => r.id !== id));
+    const raw = localStorage.getItem('erp_admin_sub_requests') || '[]';
+    const reqs = JSON.parse(raw);
+
+    const updated = reqs.map(r => r.id === id ? { ...r, status: 'REJECTED', rejectReason: 'Rejected via Dashboard' } : r);
+    localStorage.setItem('erp_admin_sub_requests', JSON.stringify(updated));
+    setSubRequests(updated);
+
     toast.showInfo('Rejected', `Subscription request for "${merchant}" was rejected.`);
   };
+
+  const pendingRequests = subRequests.filter(r => r.status === 'PENDING');
 
   const statCards = [
     { label: 'POS Terminals', value: metrics.totalCounters, subtext: `${metrics.onlineCounters} Online`, icon: Monitor, color: '#7c3aed', path: '/admin/counters/reports' },
@@ -208,15 +353,15 @@ export default function AdminDashboard() {
   const currentIdleAd = activeBannersToRender[currentIdleAdIdx];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', boxSizing: 'border-box', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', boxSizing: 'border-box' }}>
       
       {/* Header Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Admin Dashboard
           </h2>
-          <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Manage ERP configurations, system status, and developer console.
           </span>
         </div>
@@ -239,68 +384,21 @@ export default function AdminDashboard() {
 
       {/* 4 Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        {statCards.map((card, idx) => {
-          const Icon = card.icon;
-          return (
-            <div 
-              key={idx}
-              onClick={() => navigate(card.path)}
-              style={{
-                background: '#ffffff',
-                padding: '24px',
-                borderRadius: '12px',
-                border: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>{card.label}</span>
-                <h4 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.025em', lineHeight: 1.1 }}>{card.value}</h4>
-                {card.subtext && (
-                  <span style={{
-                    fontSize: '0.725rem',
-                    color: card.label === 'POS Terminals' ? '#10b981' : '#9ca3af',
-                    fontWeight: card.label === 'POS Terminals' ? 600 : 500,
-                    marginTop: '2px'
-                  }}>
-                    {card.subtext}
-                  </span>
-                )}
-              </div>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '8px',
-                background: `${card.color}12`,
-                color: card.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <Icon size={20} />
-              </div>
-            </div>
-          );
-        })}
+        {statCards.map((card, idx) => (
+          <div key={idx} onClick={() => navigate(card.path)} style={{ cursor: 'pointer' }}>
+            <StatCard 
+              label={card.label} 
+              value={card.value} 
+              icon={card.icon} 
+              color={card.color} 
+            />
+          </div>
+        ))}
       </div>
 
       {/* Quick Action Launchpad */}
-      <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
+      <Card style={{ padding: '24px' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
           Quick Action Launchpad
         </span>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -318,21 +416,18 @@ export default function AdminDashboard() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '16px 12px',
-                  background: '#ffffff',
+                  background: 'var(--bg-control)',
                   borderRadius: '12px',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid var(--border-muted)',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                  transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.borderColor = '#7c3aed';
-                  e.currentTarget.style.backgroundColor = '#fcfaff';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.backgroundColor = '#ffffff';
+                  e.currentTarget.style.borderColor = 'var(--border-muted)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
@@ -349,52 +444,52 @@ export default function AdminDashboard() {
                 }}>
                   <Icon size={16} />
                 </div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
                   {action.label}
                 </span>
               </div>
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Two-Column Mid Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         
         {/* Sync Health & Telemetry */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)', background: 'var(--bg-control)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Sync Health & Telemetry
               </span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '3px 8px',
-                borderRadius: '99px',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                background: '#fef3c7',
-                color: '#92400e'
-              }}>
+              <Badge variant="warning">
                 {metrics.pendingSyncs} Queue Batches
-              </span>
+              </Badge>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Gateway Ping Latency</span>
-                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>14ms (Optimal)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Gateway Ping Latency</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                  {pingLatency}ms (Simulated)
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Last Sync Heartbeat</span>
-                <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>Just now</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Last Sync Heartbeat</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 700 }}>{lastSyncText}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px' }}>
-                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 500 }}>Database Buffer Status</span>
-                <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>100% Synced</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Database Buffer Status</span>
+                <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>
+                  {metrics.pendingSyncs > 0 ? `${Math.max(90, 100 - metrics.pendingSyncs)}% Synced` : '100% Synced'}
+                </span>
               </div>
+              {offlineQueuedTerminalsAlert && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 20px', background: 'rgba(239, 68, 68, 0.08)', borderTop: '1px solid var(--border-muted)', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600, textAlign: 'center' }}>
+                  {offlineQueuedTerminalsAlert}
+                </div>
+              )}
             </div>
           </div>
 
@@ -403,10 +498,10 @@ export default function AdminDashboard() {
             style={{
               width: '100%',
               padding: '12px',
-              background: '#ffffff',
+              background: 'transparent',
               border: 'none',
-              borderTop: '1px solid #e5e7eb',
-              color: '#374151',
+              borderTop: '1px solid var(--border-muted)',
+              color: 'var(--text-primary)',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -415,26 +510,26 @@ export default function AdminDashboard() {
               justifyContent: 'center',
               gap: '6px'
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fafafa'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             View Sync Queue <ArrowRight size={14} />
           </button>
-        </div>
+        </Card>
 
         {/* Developer Audit Logs */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)', background: 'var(--bg-control)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Developer Audit Logs
               </span>
-              <HardDrive size={16} style={{ color: '#9ca3af' }} />
+              <HardDrive size={16} style={{ color: 'var(--text-muted)' }} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {metrics.recentLogs.length === 0 ? (
-                <span style={{ fontSize: '0.8rem', color: '#9ca3af', padding: '24px', textAlign: 'center' }}>No recent activities.</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>No recent activities.</span>
               ) : (
                 metrics.recentLogs.map((log, idx) => (
                   <div 
@@ -444,19 +539,19 @@ export default function AdminDashboard() {
                       justifyContent: 'space-between', 
                       alignItems: 'center',
                       padding: '14px 20px', 
-                      borderBottom: idx === metrics.recentLogs.length - 1 ? 'none' : '1px solid #f3f4f6' 
+                      borderBottom: idx === metrics.recentLogs.length - 1 ? 'none' : '1px solid var(--border-muted)' 
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', marginRight: '16px' }}>
                       <span 
-                        style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}
+                        style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}
                         title={log.actionDescription}
                       >
                         {log.actionDescription}
                       </span>
-                      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{log.module} • {log.userName || log.operator || 'System'}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{log.module} • {log.userName || log.operator || 'System'}</span>
                     </div>
-                    <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontFamily: 'monospace' }}>{log.timeFormatted || 'Just now'}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{log.timeFormatted || 'Just now'}</span>
                   </div>
                 ))
               )}
@@ -468,10 +563,10 @@ export default function AdminDashboard() {
             style={{
               width: '100%',
               padding: '12px',
-              background: '#ffffff',
+              background: 'transparent',
               border: 'none',
-              borderTop: '1px solid #e5e7eb',
-              color: '#374151',
+              borderTop: '1px solid var(--border-muted)',
+              color: 'var(--text-primary)',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -480,12 +575,12 @@ export default function AdminDashboard() {
               justifyContent: 'center',
               gap: '6px'
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fafafa'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             View All Logs <ArrowRight size={14} />
           </button>
-        </div>
+        </Card>
 
       </div>
 
@@ -493,83 +588,58 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         
         {/* Subscription Requests Widget */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)', background: 'var(--bg-control)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Subscription Requests
               </span>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '3px 8px',
-                borderRadius: '99px',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                background: '#fee2e2',
-                color: '#991b1b'
-              }}>
-                {subRequests.length} Pending
-              </span>
+              <Badge variant="danger">
+                {pendingRequests.length} Pending
+              </Badge>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {subRequests.map((req, idx) => (
-                <div 
-                  key={req.id} 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '14px 20px', 
-                    borderBottom: idx === subRequests.length - 1 ? 'none' : '1px solid #f3f4f6' 
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 600 }}>{req.merchant}</span>
-                    <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Plan: {req.plan} • {req.date}</span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      onClick={() => handleApproveRequest(req.id, req.merchant)}
-                      style={{
-                        padding: '4px 8px',
-                        background: '#1f2937',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px'
-                      }}
-                    >
-                      <Check size={12} /> Approve
-                    </button>
-                    <button 
-                      onClick={() => handleRejectRequest(req.id, req.merchant)}
-                      style={{
-                        padding: '4px 8px',
-                        background: 'transparent',
-                        color: '#6b7280',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px'
-                      }}
-                    >
-                      <X size={12} /> Reject
-                    </button>
-                  </div>
+              {pendingRequests.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  No pending subscription requests.
                 </div>
-              ))}
+              ) : (
+                pendingRequests.map((req, idx) => (
+                  <div 
+                    key={req.id} 
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '14px 20px', 
+                      borderBottom: idx === pendingRequests.length - 1 ? 'none' : '1px solid var(--border-muted)' 
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>{req.merchantName || req.merchant}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Plan: {req.planName || req.plan} • {formatLogTime(req.requestedAt || req.date)}</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <Button 
+                        variant="purple"
+                        onClick={() => handleApproveRequest(req.id, req.merchantName || req.merchant)}
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px' }}
+                      >
+                        <Check size={12} /> Approve
+                      </Button>
+                      <Button 
+                        variant="secondary"
+                        onClick={() => handleRejectRequest(req.id, req.merchantName || req.merchant)}
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px' }}
+                      >
+                        <X size={12} /> Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           
@@ -578,10 +648,10 @@ export default function AdminDashboard() {
             style={{
               width: '100%',
               padding: '12px',
-              background: '#ffffff',
+              background: 'transparent',
               border: 'none',
-              borderTop: '1px solid #e5e7eb',
-              color: '#374151',
+              borderTop: '1px solid var(--border-muted)',
+              color: 'var(--text-primary)',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -590,63 +660,51 @@ export default function AdminDashboard() {
               justifyContent: 'center',
               gap: '6px'
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fafafa'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             Manage Requests <ArrowRight size={14} />
           </button>
-        </div>
+        </Card>
 
         {/* Recently Added Merchants */}
-        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-muted)', background: 'var(--bg-control)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Recently Added Merchants
               </span>
-              <Store size={16} style={{ color: '#9ca3af' }} />
+              <Store size={16} style={{ color: 'var(--text-muted)' }} />
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#fcfcfc' }}>
-                    <th style={{ padding: '10px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Merchant</th>
-                    <th style={{ padding: '10px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>SaaS Plan</th>
-                    <th style={{ padding: '10px 16px', fontSize: '0.7rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
+            <Table headers={[{ label: 'Merchant' }, { label: 'SaaS Plan' }, { label: 'Status' }]} style={{ borderRadius: '0', border: 'none', boxShadow: 'none' }}>
+              {recentMerchants.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                    No registered merchants.
+                  </td>
+                </tr>
+              ) : (
+                recentMerchants.map((merchant) => (
+                  <tr 
+                    key={merchant.id} 
+                    style={{ 
+                      borderBottom: '1px solid var(--border-muted)',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <td style={{ padding: '12px 16px', fontWeight: 600 }}>{merchant.name}</td>
+                    <td style={{ padding: '12px 16px' }}>{merchant.plan}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <Badge variant={merchant.status === 'Active' ? 'success' : 'danger'}>
+                        {merchant.status}
+                      </Badge>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {recentMerchants.map((merchant, idx) => (
-                    <tr 
-                      key={merchant.id} 
-                      style={{ 
-                        borderBottom: idx === recentMerchants.length - 1 ? 'none' : '1px solid #f3f4f6',
-                        fontSize: '0.75rem',
-                        color: '#374151'
-                      }}
-                    >
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{merchant.name}</td>
-                      <td style={{ padding: '12px 16px' }}>{merchant.plan}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '3px 8px',
-                          borderRadius: '99px',
-                          fontSize: '0.65rem',
-                          fontWeight: 600,
-                          background: merchant.status === 'Active' ? '#d1fae5' : '#fee2e2',
-                          color: merchant.status === 'Active' ? '#065f46' : '#991b1b'
-                        }}>
-                          {merchant.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))
+              )}
+            </Table>
           </div>
 
           <button
@@ -654,10 +712,10 @@ export default function AdminDashboard() {
             style={{
               width: '100%',
               padding: '12px',
-              background: '#ffffff',
+              background: 'transparent',
               border: 'none',
-              borderTop: '1px solid #e5e7eb',
-              color: '#374151',
+              borderTop: '1px solid var(--border-muted)',
+              color: 'var(--text-primary)',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -666,12 +724,12 @@ export default function AdminDashboard() {
               justifyContent: 'center',
               gap: '6px'
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fafafa'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             View All Merchants <ArrowRight size={14} />
           </button>
-        </div>
+        </Card>
 
       </div>
 

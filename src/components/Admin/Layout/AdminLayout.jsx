@@ -18,17 +18,41 @@ export default function AdminLayout({ sidebar, header, children }) {
   const [currentVertIndex, setCurrentVertIndex] = useState(0);
   const [currentHorizIndex, setCurrentHorizIndex] = useState(0);
 
+  const isAdCurrentlyEligible = (ad) => {
+    const now = new Date();
+    const start = new Date(ad.startDate);
+    const end = new Date(ad.endDate);
+    if (now < start || now > end) return false;
+
+    const daysOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const currentDay = daysOfWeek[now.getDay()];
+    const activeDays = ad.activeDays || ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    if (!activeDays.includes(currentDay)) return false;
+
+    if (ad.restrictHours && ad.activeStartTime && ad.activeEndTime) {
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeString = `${currentHours}:${currentMinutes}`;
+      if (currentTimeString < ad.activeStartTime || currentTimeString > ad.activeEndTime) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   useEffect(() => {
     const loadAds = () => {
       const raw = localStorage.getItem('erp_admin_ads') || localStorage.getItem('erp_advertisements') || '[]';
       const storedAds = JSON.parse(raw);
       const verts = storedAds.filter(a => 
         (a.type === 'VERTICAL' || a.placement === 'Merchant Dashboard (Vertical Skyscraper)') && 
-        (a.status === 'ACTIVE' || a.status === 'active')
+        (a.status === 'ACTIVE' || a.status === 'active') &&
+        isAdCurrentlyEligible(a)
       );
       const horizs = storedAds.filter(a => 
         (a.type === 'HORIZONTAL' || a.placement === 'POS Dual-Screen (Horizontal Leaderboard)') && 
-        (a.status === 'ACTIVE' || a.status === 'active')
+        (a.status === 'ACTIVE' || a.status === 'active') &&
+        isAdCurrentlyEligible(a)
       );
 
       console.log("Dashboard Ad Filter Check [Vertical]:", verts);
@@ -127,7 +151,7 @@ export default function AdminLayout({ sidebar, header, children }) {
       display: 'flex',
       height: '100vh',
       width: '100%',
-      backgroundColor: '#f8fafc',
+      backgroundColor: 'var(--bg-main)',
       position: 'relative',
       padding: '0px',
       gap: '0px',
@@ -139,7 +163,7 @@ export default function AdminLayout({ sidebar, header, children }) {
       <div className="desktop-sidebar-container">
         {sidebar}
       </div>
-
+ 
       {/* Mobile/Tablet Sidebar Drawer */}
       {mobileSidebarOpen && (
         <>
@@ -170,7 +194,7 @@ export default function AdminLayout({ sidebar, header, children }) {
           </div>
         </>
       )}
-
+ 
       {/* Unified Middle Content Workspace */}
       <div style={{
         flex: 1,
@@ -179,7 +203,7 @@ export default function AdminLayout({ sidebar, header, children }) {
         minWidth: 0,
         height: '100%',
         overflow: 'hidden',
-        background: '#f8fafc'
+        background: 'transparent'
       }}>
         
         {/* Full-Width Header at top */}
@@ -410,8 +434,8 @@ export default function AdminLayout({ sidebar, header, children }) {
           flex-direction: column;
           width: 280px;
           height: 100%;
-          border-left: 1px solid #e5e7eb;
-          background: #ffffff;
+          border-left: 1px solid var(--border-muted);
+          background: var(--bg-sidebar);
           flex-shrink: 0;
         }
         @media (max-width: 1023px) {

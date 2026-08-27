@@ -13,6 +13,8 @@ import Select from '../../../components/ui/Select';
 import Badge from '../../../components/ui/Badge';
 import Table from '../../../components/ui/Table';
 import ConfirmDialog from '../../ui/ConfirmDialog';
+import Modal from '../../ui/Modal';
+import { simulateOfflineTransactions, toggleCounterStatus } from '../../../utils/syncSimulator';
 
 const SEED_SYNC_LOGS = [
   {
@@ -66,6 +68,46 @@ export default function DataSyncReport() {
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [inspectingLog, setInspectingLog] = useState(null);
 
+  // Offline stats states
+  const [offlineCountersCount, setOfflineCountersCount] = useState(0);
+  const [totalQueuedCount, setTotalQueuedCount] = useState(0);
+  const [counters, setCounters] = useState([]);
+
+  const loadOfflineCountersStats = () => {
+    const rawCounters = localStorage.getItem('erp_admin_counters') || '[]';
+    try {
+      const countersList = JSON.parse(rawCounters);
+      setCounters(countersList);
+      const offlineList = countersList.filter(c => c.status === 'OFFLINE');
+      setOfflineCountersCount(offlineList.length);
+      const totalQueued = offlineList.reduce((sum, c) => sum + (c.offlineQueue?.length || 0), 0);
+      setTotalQueuedCount(totalQueued);
+    } catch (e) {
+      setOfflineCountersCount(0);
+      setTotalQueuedCount(0);
+      setCounters([]);
+    }
+  };
+
+  useEffect(() => {
+    loadOfflineCountersStats();
+    
+    // Add simulator interval
+    const interval = setInterval(() => {
+      const raw = localStorage.getItem('erp_admin_counters');
+      if (raw) {
+        const list = JSON.parse(raw);
+        const { updated, changed } = simulateOfflineTransactions(list);
+        if (changed) {
+          localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+          localStorage.setItem('counters', JSON.stringify(updated));
+          loadOfflineCountersStats();
+        }
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const loadLogs = () => {
       const raw = localStorage.getItem('erp_sync_logs');
@@ -106,6 +148,7 @@ export default function DataSyncReport() {
       });
       localStorage.setItem('erp_sync_logs', JSON.stringify(normalized));
       setLogs(normalized);
+      loadOfflineCountersStats();
     };
     loadLogs();
   }, []);
@@ -185,6 +228,48 @@ export default function DataSyncReport() {
     toast.showSuccess('Sync Retried', `Batch ${log.id} synchronized successfully.`);
   };
 
+  const handleToggleTerminal = (id, currentStatus) => {
+    const { updatedCounters, nextStatus, processedCount, counterName } = toggleCounterStatus(counters, id, currentStatus);
+    localStorage.setItem('erp_admin_counters', JSON.stringify(updatedCounters));
+    localStorage.setItem('counters', JSON.stringify(updatedCounters));
+    setCounters(updatedCounters);
+    loadOfflineCountersStats();
+    
+    if (processedCount > 0) {
+      const raw = localStorage.getItem('erp_sync_logs') || '[]';
+      setLogs(JSON.parse(raw));
+      toast.showSuccess('Sync Success', `Automatically synced ${processedCount} queued transactions from ${counterName}`);
+    } else {
+      toast.showSuccess('Status Updated', `Terminal "${counterName}" is now ${nextStatus}`);
+    }
+  };
+
+  const handleSimulateTransaction = (id) => {
+    const updated = counters.map(c => {
+      if (c.id === id) {
+        const queue = c.offlineQueue || [];
+        const recordsCount = Math.floor(1 + Math.random() * 5);
+        const categories = ["Sales Invoices & Khata", "Stock Inventory Adjustments", "Customer Ledger Sync"];
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        const newTx = {
+          category,
+          recordsCount,
+          payload: { note: "Simulated offline transaction", amount: recordsCount * 380 }
+        };
+        return {
+          ...c,
+          offlineQueue: [...queue, newTx]
+        };
+      }
+      return c;
+    });
+    localStorage.setItem('erp_admin_counters', JSON.stringify(updated));
+    localStorage.setItem('counters', JSON.stringify(updated));
+    setCounters(updated);
+    loadOfflineCountersStats();
+    toast.showInfo('Simulation', 'Generated 1 offline transaction packet in queue.');
+  };
+
   // Filters application
   const filtered = logs.filter(l => {
     const matchesSearch = 
@@ -200,7 +285,7 @@ export default function DataSyncReport() {
 
     const matchesPayload = 
       payloadFilter === 'All' || 
-      (l.payloadType || '').toLowerCase().includes(payloadFilter.toLowerCase());
+      (l.category || '').toLowerCase().includes(payloadFilter.toLowerCase());
 
     return matchesSearch && matchesStatus && matchesPayload;
   });
@@ -237,45 +322,112 @@ export default function DataSyncReport() {
       />
 
       {/* KPI Telemetry Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
         
-        {/* Sync Engine Health */}
-        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <StatCard
+          label={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               Sync Engine Status
               <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', animation: 'greenPulse 2s infinite' }} />
             </span>
-            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#10b981', margin: '4px 0' }}>99.98% Uptime</h4>
-          </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
-            <Wifi size={18} />
-          </div>
-        </div>
+          }
+          value="99.98% Uptime"
+          icon={Wifi}
+          color="#10b981"
+        />
 
         <StatCard label="Pending / Queued Batches" value={`${pendingCount} Queued`} icon={Layers} color="#d97706" />
         
-        {/* Failed conflicts alert card */}
-        <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <StatCard
+          label={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               Failed / Conflict Syncs
               {failedCount > 0 && (
-                <span style={{ background: '#fee2e2', color: '#ef4444', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                <span style={{ background: '#fee2e2', color: '#ef4444', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, marginLeft: '4px' }}>
                   ALERT
                 </span>
               )}
             </span>
-            <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: failedCount > 0 ? '#ef4444' : '#111827', margin: '4px 0' }}>{failedCount} Batches</h4>
-          </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: failedCount > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: failedCount > 0 ? '#ef4444' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' }}>
-            <ShieldAlert size={18} />
-          </div>
-        </div>
+          }
+          value={`${failedCount} Batches`}
+          icon={ShieldAlert}
+          color={failedCount > 0 ? '#ef4444' : '#6b7280'}
+        />
 
         <StatCard label="Average Node Latency" value={`${avgLatency}ms`} icon={Cpu} color="#0891b2" />
 
+        <StatCard 
+          label="Offline Terminals" 
+          value={`${offlineCountersCount} (${totalQueuedCount} queued)`} 
+          icon={Cpu} 
+          color={totalQueuedCount > 0 ? '#ef4444' : '#6b7280'} 
+        />
+
       </div>
+
+      {/* Connectivity & Offline Simulation Panel */}
+      <Card style={{ padding: '20px' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
+          POS Terminals Connectivity & Simulation Panel (Demo Controls)
+        </span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          {counters.map(c => {
+            const isOnline = String(c.status).toUpperCase() === 'ONLINE';
+            const queueLen = c.offlineQueue?.length || 0;
+            return (
+              <div 
+                key={c.id} 
+                style={{ 
+                  padding: '14px', 
+                  borderRadius: '8px', 
+                  border: '1px solid var(--border-muted)', 
+                  background: 'var(--bg-control)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.name}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Code: {c.code}</span>
+                  </div>
+                  <Badge variant={isOnline ? 'success' : 'danger'}>
+                    {c.status}
+                  </Badge>
+                </div>
+                
+                {!isOnline && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.05)', padding: '6px 10px', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Buffered Queue:</span>
+                    <strong style={{ fontSize: '0.75rem', color: '#ef4444' }}>{queueLen} items</strong>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <Button 
+                    variant={isOnline ? 'secondary' : 'success'}
+                    onClick={() => handleToggleTerminal(c.id, c.status)}
+                    style={!isOnline ? { color: '#10b981', borderColor: '#10b981', background: '#f0fdf4', padding: '6px 8px', fontSize: '0.7rem', flex: 1 } : { padding: '6px 8px', fontSize: '0.7rem', flex: 1 }}
+                  >
+                    {isOnline ? 'Go Offline' : 'Go Online (Sync)'}
+                  </Button>
+                  
+                  {!isOnline && (
+                    <Button 
+                      variant="purple"
+                      onClick={() => handleSimulateTransaction(c.id)}
+                      style={{ padding: '6px 8px', fontSize: '0.7rem', flex: 1 }}
+                    >
+                      + Sim Tx
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       {/* Filter Controls Bar */}
       <Card style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -423,67 +575,50 @@ export default function DataSyncReport() {
       </Table>
 
       {/* JSON Payload Inspector Modal */}
-      {inspectingLog && (
-        <>
-          <div 
-            onClick={() => setInspectingLog(null)}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)', zIndex: 9998 }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '420px',
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            padding: '24px',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}>
-            <div style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <FileText size={16} style={{ color: '#7c3aed' }} /> Inspect Sync Batch Payload
-              </span>
-              <button onClick={() => setInspectingLog(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: '#9ca3af' }}>×</button>
-            </div>
-
+      <Modal
+        isOpen={!!inspectingLog}
+        onClose={() => setInspectingLog(null)}
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <FileText size={16} style={{ color: '#7c3aed' }} /> Inspect Sync Batch Payload
+          </span>
+        }
+        width="420px"
+      >
+        {inspectingLog && (
+          <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.775rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#6b7280' }}>Batch ID:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Batch ID:</span>
                 <strong>{inspectingLog.id || 'N/A'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#6b7280' }}>Origin Terminal:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Origin Terminal:</span>
                 <span>
                   {inspectingLog.terminalName || 'Unknown Terminal'} 
                   {inspectingLog.terminalCode ? ` (${inspectingLog.terminalCode})` : ''}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#6b7280' }}>Payload Class:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Payload Class:</span>
                 <span style={{ fontWeight: 600, color: '#7c3aed' }}>{inspectingLog.category || 'Unclassified'}</span>
               </div>
               {inspectingLog.recordsCount !== undefined && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#6b7280' }}>Records Count:</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Records Count:</span>
                   <span>{inspectingLog.recordsCount || 0} items</span>
                 </div>
               )}
               {inspectingLog.latencyMs !== undefined && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#6b7280' }}>Latency:</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Latency:</span>
                   <span>{inspectingLog.status === 'SUCCESS' ? `${inspectingLog.latencyMs}ms` : 'Pending'}</span>
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase' }}>Raw Payload Summary</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Raw Payload Summary</span>
               <pre style={{
                 background: '#1e293b',
                 color: '#f8fafc',
@@ -513,9 +648,9 @@ export default function DataSyncReport() {
                 Close
               </Button>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </Modal>
 
       <style>{`
         @keyframes greenPulse {
