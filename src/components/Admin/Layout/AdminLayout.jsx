@@ -45,12 +45,12 @@ export default function AdminLayout({ sidebar, header, children }) {
       const raw = localStorage.getItem('erp_admin_ads') || localStorage.getItem('erp_advertisements') || '[]';
       const storedAds = JSON.parse(raw);
       const verts = storedAds.filter(a => 
-        (a.type === 'VERTICAL' || a.placement === 'Merchant Dashboard (Vertical Skyscraper)') && 
+        (a.type === 'VERTICAL' || a.placement === 'Merchant Dashboard (Vertical Skyscraper)' || a.placement === 'Sidebar') && 
         (a.status === 'ACTIVE' || a.status === 'active') &&
         isAdCurrentlyEligible(a)
       );
       const horizs = storedAds.filter(a => 
-        (a.type === 'HORIZONTAL' || a.placement === 'POS Dual-Screen (Horizontal Leaderboard)') && 
+        (a.type === 'HORIZONTAL' || a.placement === 'POS Dual-Screen (Horizontal Leaderboard)' || a.placement === 'Footer') && 
         (a.status === 'ACTIVE' || a.status === 'active') &&
         isAdCurrentlyEligible(a)
       );
@@ -76,7 +76,7 @@ export default function AdminLayout({ sidebar, header, children }) {
 
     if (activeVerts.length > 1) {
       const vertAd = activeVerts[currentVertIndex];
-      const speed = (vertAd?.rotationSpeed || 5) * 1000;
+      const speed = (Number(vertAd?.rotationSpeed) || 8) * 1000;
       const interval = setInterval(() => {
         const nextIdx = (currentVertIndex + 1) % activeVerts.length;
         setCurrentVertIndex(nextIdx);
@@ -94,7 +94,7 @@ export default function AdminLayout({ sidebar, header, children }) {
 
     if (activeHorizs.length > 1) {
       const horizAd = activeHorizs[currentHorizIndex];
-      const speed = (horizAd?.rotationSpeed || 6) * 1000;
+      const speed = (Number(horizAd?.rotationSpeed) || 8) * 1000;
       const interval = setInterval(() => {
         const nextIdx = (currentHorizIndex + 1) % activeHorizs.length;
         setCurrentHorizIndex(nextIdx);

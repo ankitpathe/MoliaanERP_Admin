@@ -33,6 +33,8 @@ export default function AdminHeader({
            document.documentElement.classList.contains('dark');
   });
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [pendingSubsCount, setPendingSubsCount] = useState(0);
+  const [pendingHelpCount, setPendingHelpCount] = useState(0);
 
   // Notifications states
   const [notifications, setNotifications] = useState([]);
@@ -110,7 +112,20 @@ export default function AdminHeader({
       const totalCounters = counters.length || 4;
 
       setOnlineTelemetry({ online: activeCounters, total: totalCounters });
-      setSnapshot({ volume, activeCounters, pendingRequests: 2 });
+      let pendingSubs = 2;
+      try {
+        const subReqs = JSON.parse(localStorage.getItem('erp_admin_sub_requests') || '[]');
+        pendingSubs = subReqs.filter(r => String(r.status).toLowerCase() === 'pending').length;
+        setPendingSubsCount(pendingSubs);
+      } catch (e) {}
+
+      setSnapshot({ volume, activeCounters, pendingRequests: pendingSubs });
+
+      try {
+        const helpReqs = JSON.parse(localStorage.getItem('helpRequests') || '[]');
+        const pendingHelp = helpReqs.filter(r => String(r.status).toLowerCase() === 'open').length;
+        setPendingHelpCount(pendingHelp);
+      } catch (e) {}
     };
     loadStats();
   }, [location.pathname, notificationsOpen]);
@@ -120,30 +135,33 @@ export default function AdminHeader({
     const reqs = JSON.parse(localStorage.getItem('helpRequests') || '[]');
     const openReqsMapped = reqs.filter(r => r.status === 'open').map(r => ({
       id: r.id,
-      title: `Help Request - ${r.priority.toUpperCase()}`,
+      title: `Help Request`,
       text: `${r.senderName} (${r.senderType}): "${r.subject}"`,
       time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
       unread: true,
-      isHelpRequest: true
+      isHelpRequest: true,
+      timestamp: r.createdAt ? new Date(r.createdAt).getTime() : Date.now(),
+      priority: r.priority
     }));
 
     const logs = JSON.parse(localStorage.getItem('erp_activity_logs') || '[]');
-    const logsMapped = logs.slice(0, 5).map((log, idx) => ({
+    const logsMapped = logs.slice(0, 10).map((log, idx) => ({
       id: log.id || idx,
       title: log.module || 'System Activity',
       text: log.actionDescription,
       time: log.time || 'Just now',
-      unread: true
+      unread: log.unread !== undefined ? log.unread : false,
+      timestamp: log.timestamp ? new Date(log.timestamp).getTime() : (Date.now() - idx * 60000 - 10000)
     }));
 
-    const merged = [...openReqsMapped, ...logsMapped];
+    const merged = [...openReqsMapped, ...logsMapped].sort((a, b) => b.timestamp - a.timestamp);
     if (merged.length > 0) {
-      setNotifications(merged);
+      setNotifications(merged.slice(0, 8));
     } else {
       setNotifications([
-        { id: 1, title: 'POS-01 Online', text: 'Counter POS-01 has successfully synchronized.', time: '2 mins ago', unread: true },
-        { id: 2, title: 'Upgrade Approved', text: 'Merchant request for Delhi Central was processed.', time: '1 hour ago', unread: true },
-        { id: 3, title: 'Database Backup', text: 'Daily cloud database backup completed successfully.', time: '12 hours ago', unread: false }
+        { id: 1, title: 'POS-01 Online', text: 'Counter POS-01 has successfully synchronized.', time: '2 mins ago', unread: true, timestamp: Date.now() - 120000 },
+        { id: 2, title: 'Upgrade Approved', text: 'Merchant request Delhi Central processed.', time: '1 hour ago', unread: true, timestamp: Date.now() - 3600000 },
+        { id: 3, title: 'Database Backup', text: 'Daily cloud database backup completed.', time: '12 hours ago', unread: false, timestamp: Date.now() - 43200000 }
       ]);
     }
   }, [notificationsOpen]);
@@ -289,8 +307,8 @@ export default function AdminHeader({
         boxSizing: 'border-box'
       }}
     >
-      {/* LEFT SECTION (Branch Switcher & Route Path) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* LEFT SECTION (Brand / Logo) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
@@ -302,250 +320,221 @@ export default function AdminHeader({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: '8px',
-              border: '1px solid #e5e7eb',
-              background: '#ffffff'
+              border: '1px solid var(--border-muted)',
+              background: 'var(--bg-control)',
+              color: 'var(--text-primary)',
+              height: '36px',
+              width: '36px',
+              boxSizing: 'border-box'
             }}
           >
             <Menu size={16} />
           </button>
         )}
+        <span 
+          onClick={() => navigate('/admin/dashboard')}
+          style={{ 
+            fontSize: '0.95rem', 
+            fontWeight: 800, 
+            color: 'var(--text-primary)', 
+            letterSpacing: '0.025em',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Activity size={18} style={{ color: 'var(--accent-primary)' }} />
+          <span className="brand-logo-text" style={{ fontWeight: 800 }}>Moliaan Admin</span>
+        </span>
+      </div>
 
-        {/* Active Branch Selector Custom Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => {
-                setBranchMenuOpen(!branchMenuOpen);
-                setRouteMenuOpen(false);
-              }}
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                background: 'var(--bg-control)',
-                border: '1px solid var(--border-muted)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                outline: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                height: '36px',
-                boxSizing: 'border-box'
-              }}
-            >
-              <span>{branch}</span>
-              <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
-            </button>
+      {/* CENTER SECTION (Search & Needs Attention Badges) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, justifySelf: 'start', maxWidth: '580px' }}>
+        <div style={{ 
+          flex: 1, 
+          maxWidth: '240px', 
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          <input 
+            ref={searchInputRef}
+            type="text" 
+            placeholder="Search..." 
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 32px',
+              fontSize: '0.8rem',
+              borderRadius: '99px',
+              height: '36px',
+              boxSizing: 'border-box',
+              border: searchFocused ? '1px solid var(--border-active)' : '1px solid var(--border-muted)',
+              background: 'var(--bg-control)',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              transition: 'all 0.2s ease',
+              boxShadow: searchFocused ? '0 0 0 3px var(--border-glow)' : 'none'
+            }}
+          />
+          <Search 
+            size={14} 
+            style={{ 
+              position: 'absolute', 
+              left: '12px', 
+              color: 'var(--text-muted)' 
+            }} 
+          />
 
-          {branchMenuOpen && (
-            <>
-              <div 
-                onClick={() => setBranchMenuOpen(false)}
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }}
-              />
-              <div 
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  marginTop: '8px',
-                  width: '256px',
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(4px)',
-                  borderRadius: '12px',
-                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                  border: '1px solid #e2e8f0',
-                  zIndex: 9999,
-                  padding: '8px 0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px'
-                }}
-              >
-                {[
-                  '🏬 Main Outlet (Chhindwara)',
-                  '🏬 Branch 02',
-                  '🌐 All Stores (Combined)'
-                ].map((option) => (
+          {/* Floating Search Results Modal */}
+          {searchFocused && searchValue.trim() && (
+            <div style={{
+              position: 'absolute',
+              top: '40px',
+              left: 0,
+              right: 0,
+              background: 'var(--bg-card)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-muted)',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2)',
+              padding: '6px',
+              zIndex: 1000,
+              maxHeight: '280px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px'
+            }}>
+              {searchResults.length === 0 ? (
+                <span style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+                  No results found.
+                </span>
+              ) : (
+                searchResults.map((res, i) => (
                   <button
-                    key={option}
-                    onClick={() => {
-                      setBranch(option);
-                      localStorage.setItem('erp_active_outlet', option);
-                      toast.showSuccess('Branch Switched', `Active branch switched to ${option}.`);
-                      setBranchMenuOpen(false);
-                    }}
+                    key={i}
+                    onMouseDown={() => handleSearchResultClick(res)}
                     style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-primary)',
                       width: '100%',
                       textAlign: 'left',
-                      padding: '8px 16px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: '#374151',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s'
+                      cursor: 'pointer'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-control-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    {option}
+                    <span style={{ fontWeight: 600 }}>{res.name}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'var(--bg-control)', padding: '2px 6px', borderRadius: '4px' }}>
+                      {res.type}
+                    </span>
                   </button>
-                ))}
-              </div>
-            </>
-           )}
+                ))
+              )}
+            </div>
+          )}
         </div>
-        <span style={{ 
-          fontSize: '0.7rem', 
-          fontWeight: 700, 
-          color: 'var(--text-muted)', 
-          background: 'var(--bg-control)', 
-          border: '1px solid var(--border-muted)', 
-          padding: '4px 8px', 
-          borderRadius: '6px', 
-          height: '24px', 
-          display: 'inline-flex', 
-          alignItems: 'center',
-          whiteSpace: 'nowrap'
-        }}>
-          {getShiftIndicator().replace('Shift ', '')}
-        </span>
-      </div>      </div>
 
-      {/* CENTER SECTION (Universal Omnisearch) */}
-      <div style={{ 
-        flex: 1, 
-        maxWidth: '360px', 
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center'
-      }}>
-        <input 
-          ref={searchInputRef}
-          type="text" 
-          placeholder="Search counters, merchants, licenses..." 
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-          style={{
-            width: '100%',
-            padding: '8px 60px 8px 36px',
-            fontSize: '0.8rem',
-            borderRadius: '99px',
-            height: '36px',
-            boxSizing: 'border-box',
-            border: searchFocused ? '1px solid var(--border-active)' : '1px solid var(--border-muted)',
-            background: 'var(--bg-control)',
-            outline: 'none',
-            color: 'var(--text-primary)',
-            transition: 'all 0.2s ease',
-            boxShadow: searchFocused ? '0 0 0 3px var(--border-glow)' : 'none'
-          }}
-        />
-        <Search 
-          size={14} 
-          style={{ 
-            position: 'absolute', 
-            left: '14px', 
-            color: '#9ca3af' 
-          }} 
-        />
-        <span style={{
-          position: 'absolute',
-          right: '12px',
-          background: '#e5e7eb',
-          color: '#4b5563',
-          fontSize: '0.625rem',
-          fontWeight: 700,
-          padding: '2px 6px',
-          borderRadius: '4px',
-          pointerEvents: 'none'
-        }}>
-          Ctrl + K
-        </span>
-
-        {/* Floating Search Results Modal */}
-        {searchFocused && searchValue.trim() && (
-          <div style={{
-            position: 'absolute',
-            top: '40px',
-            left: 0,
-            right: 0,
-            background: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            padding: '6px',
-            zIndex: 1000,
-            maxHeight: '280px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px'
-          }}>
-            {searchResults.length === 0 ? (
-              <span style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center' }}>
-                No results found.
-              </span>
-            ) : (
-              searchResults.map((res, i) => (
-                <button
-                  key={i}
-                  onMouseDown={() => handleSearchResultClick(res)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    border: 'none',
-                    background: 'transparent',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    color: '#374151',
-                    width: '100%',
-                    textAlign: 'left',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ fontWeight: 600 }}>{res.name}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#9ca3af', background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
-                    {res.type}
-                  </span>
-                </button>
-              ))
-            )}
+        {/* Needs Attention Badge Cluster */}
+        <div className="attention-badges-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Sub requests badge */}
+          <div 
+            onClick={() => navigate('/admin/subscriptions/requests')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              background: 'var(--bg-control)',
+              border: '1px solid var(--border-muted)',
+              fontSize: '0.725rem',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              height: '28px',
+              boxSizing: 'border-box'
+            }}
+            title={`${pendingSubsCount} Pending Subscription Requests`}
+          >
+            <span>Subs</span>
+            <span style={{ 
+              background: pendingSubsCount > 0 ? 'var(--accent-primary)' : 'var(--border-muted)',
+              color: pendingSubsCount > 0 ? '#ffffff' : 'var(--text-muted)',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: '99px',
+              minWidth: '14px',
+              textAlign: 'center'
+            }}>
+              {pendingSubsCount}
+            </span>
           </div>
-        )}
+
+          {/* Help requests badge */}
+          <div 
+            onClick={() => navigate('/admin/help')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              background: 'var(--bg-control)',
+              border: '1px solid var(--border-muted)',
+              fontSize: '0.725rem',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              height: '28px',
+              boxSizing: 'border-box'
+            }}
+            title={`${pendingHelpCount} Open Help Tickets`}
+          >
+            <span>Help</span>
+            <span style={{ 
+              background: pendingHelpCount > 0 ? 'var(--accent-primary)' : 'var(--border-muted)',
+              color: pendingHelpCount > 0 ? '#ffffff' : 'var(--text-muted)',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: '99px',
+              minWidth: '14px',
+              textAlign: 'center'
+            }}>
+              {pendingHelpCount}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* RIGHT SECTION (Real-Time Ops & Actions) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         
-        {/* Live Telemetry Pill */}
         {/* Unified Status Indicator */}
         <div 
           onClick={() => navigate('/admin/data-sync/report')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            fontSize: '0.725rem',
-            fontWeight: 600,
-            background: 'var(--bg-control)',
-            border: '1px solid var(--border-muted)',
-            color: 'var(--text-muted)',
+            gap: '6px',
             cursor: 'pointer',
             height: '36px',
-            boxSizing: 'border-box'
+            fontSize: '0.725rem',
+            fontWeight: 600,
+            color: 'var(--text-muted)'
           }}
           title="Terminal Network Status & Sync Health"
         >
@@ -557,7 +546,7 @@ export default function AdminHeader({
             background: '#10b981',
             animation: 'pulse 1.5s infinite'
           }} />
-          <span className="header-status-label">{onlineTelemetry.online}/{onlineTelemetry.total} Online • Synced</span>
+          <span className="header-status-label">System Healthy</span>
         </div>
 
         {/* Notification Bell with Dropdown */}
@@ -569,21 +558,22 @@ export default function AdminHeader({
               setHasUnread(false);
             }}
             style={{
-              width: '32px',
-              height: '32px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              color: '#4b5563',
+              border: '1px solid var(--border-muted)',
+              background: 'var(--bg-control)',
+              color: 'var(--text-muted)',
               position: 'relative',
-              transition: 'background-color 0.2s ease'
+              transition: 'all 0.2s ease',
+              boxSizing: 'border-box'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
           >
             <Bell size={15} />
             {unreadCount > 0 && (
@@ -611,10 +601,10 @@ export default function AdminHeader({
                 top: '40px',
                 right: 0,
                 width: '310px',
-                background: '#ffffff',
+                background: 'var(--bg-card)',
                 borderRadius: '16px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05)',
+                border: '1px solid var(--border-muted)',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.1)',
                 padding: '16px',
                 zIndex: 99,
                 display: 'flex',
@@ -622,11 +612,11 @@ export default function AdminHeader({
                 gap: '12px'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1f2937' }}>Notifications</span>
+                  <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)' }}>Notifications</span>
                   {unreadCount > 0 && (
                     <button 
                       onClick={markAllRead}
-                      style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                     >
                       Mark all read
                     </button>
@@ -634,66 +624,99 @@ export default function AdminHeader({
                 </div>
 
                 {/* Today's Summary */}
-                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ background: 'var(--bg-control)', border: '1px solid var(--border-muted)', padding: '10px 12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Today's Summary
                   </span>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#334155', fontWeight: 600 }}>
-                    <Receipt size={13} style={{ color: '#dc2626' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    <Receipt size={13} style={{ color: '#ef4444' }} />
                     <span>₹{snapshot.volume.toLocaleString('en-IN')} volume processed</span>
                   </div>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#334155', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                     <Monitor size={13} style={{ color: '#10b981' }} />
                     <span>{onlineTelemetry.online} Active Counters online</span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#334155', fontWeight: 600 }}>
-                    <Users size={13} style={{ color: '#0891b2' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    <Users size={13} style={{ color: '#3b82f6' }} />
                     <span>{snapshot.pendingRequests} Pending SaaS Requests</span>
                   </div>
                 </div>
 
-                <div style={{ height: '1px', background: '#f3f4f6', margin: '4px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border-muted)', margin: '4px 0' }} />
 
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Recent Activity
                 </span>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
-                  {notifications.map((n, i) => (
-                    <div 
-                      key={n.id || i} 
-                      onClick={() => {
-                        setNotificationsOpen(false);
-                        if (n.isHelpRequest) {
-                          navigate(`/admin/help?id=${n.id}`);
-                        } else {
-                          navigate('/admin/activity-logs');
-                        }
-                      }}
-                      style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
-                        padding: '6px 8px', 
-                        borderRadius: '8px', 
-                        background: n.unread ? '#f5f3ff' : 'transparent',
-                        alignItems: 'flex-start',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Activity size={12} style={{ color: '#7c3aed', marginTop: '2px', flexShrink: 0 }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#374151', fontWeight: 600, lineHeight: 1.2 }}>
-                          {n.text}
-                        </span>
-                        <span style={{ fontSize: '0.65rem', color: '#9ca3af' }}>
-                          {n.title} • {n.time}
-                        </span>
+                  {notifications.map((n, i) => {
+                    // Semantic activity icon color
+                    let iconColor = '#3b82f6'; // default info blue
+                    if (n.isHelpRequest) {
+                      const prio = String(n.priority).toLowerCase();
+                      if (prio === 'urgent' || prio === 'high') {
+                        iconColor = '#ef4444'; // Red
+                      } else if (prio === 'medium') {
+                        iconColor = '#f59e0b'; // Orange/Yellow
+                      } else {
+                        iconColor = '#3b82f6'; // Blue
+                      }
+                    } else {
+                      iconColor = '#10b981'; // System Logs green
+                    }
+
+                    return (
+                      <div 
+                        key={n.id || i} 
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          if (n.isHelpRequest) {
+                            navigate(`/admin/help?id=${n.id}`);
+                          } else {
+                            navigate('/admin/activity-logs');
+                          }
+                        }}
+                        style={{ 
+                          display: 'flex', 
+                          gap: '8px', 
+                          padding: '6px 8px', 
+                          borderRadius: '8px', 
+                          background: n.unread ? 'var(--bg-control-hover)' : 'transparent',
+                          alignItems: 'flex-start',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Activity size={12} style={{ color: iconColor, marginTop: '2.5px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.2, textDecoration: 'none', opacity: 1 }}>
+                            {n.text}
+                          </span>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                            {n.isHelpRequest && (
+                              <span style={{
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontSize: '0.6rem',
+                                fontWeight: 700,
+                                background: n.priority === 'urgent' || n.priority === 'high' ? 'rgba(239,68,68,0.15)' : n.priority === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
+                                color: n.priority === 'urgent' || n.priority === 'high' ? '#f87171' : n.priority === 'medium' ? '#fbbf24' : '#60a5fa',
+                                textTransform: 'uppercase'
+                              }}>
+                                {n.priority}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                              {n.isHelpRequest ? 'Help Ticket' : n.title} • {n.time}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <button
@@ -701,18 +724,19 @@ export default function AdminHeader({
                   style={{
                     width: '100%',
                     padding: '8px',
-                    background: '#f8fafc',
-                    border: 'none',
+                    background: 'var(--bg-control)',
+                    border: '1px solid var(--border-muted)',
                     borderRadius: '8px',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    color: '#7c3aed',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
                     textAlign: 'center',
-                    marginTop: '4px'
+                    marginTop: '4px',
+                    transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-control-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-control)'}
                 >
                   View All Activity Logs
                 </button>

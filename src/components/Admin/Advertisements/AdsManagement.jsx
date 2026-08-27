@@ -14,6 +14,15 @@ import AdImage from './AdImage';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { saveImage, deleteImage } from '../../../utils/imageStorage';
 
+const IMAGE_LIMITS = {
+  maxSizeBytes: 2 * 1024 * 1024,
+  maxSizeMB: 2,
+  dimensions: {
+    Sidebar: { recommended: "300x600px", maxWidth: 400, maxHeight: 800 },
+    Footer: { recommended: "728x90px", maxWidth: 800, maxHeight: 200 }
+  }
+};
+
 const SEED_ADS = [
   {
     id: "AD-2026-01",
@@ -80,6 +89,9 @@ export default function AdsManagement() {
 
   // Modal and inspector states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingAd, setEditingAd] = useState(null);
+  const [showScheduleSettings, setShowScheduleSettings] = useState(false);
+  const [showBillingSettings, setShowBillingSettings] = useState(false);
   const [inspectingAd, setInspectingAd] = useState(null);
   const [previewAd, setPreviewAd] = useState(null);
   const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
@@ -93,14 +105,14 @@ export default function AdsManagement() {
   // Form states
   const [title, setTitle] = useState('');
   const [advertiser, setAdvertiser] = useState('');
-  const [placement, setPlacement] = useState('Merchant Dashboard (Vertical Skyscraper)');
+  const [placement, setPlacement] = useState('Sidebar');
   const [aspectRatio, setAspectRatio] = useState('1:2 (300x600)');
   const [targetUrl, setTargetUrl] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [revenue, setRevenue] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('paid');
-  const [uploadMode, setUploadMode] = useState('URL'); // 'URL' | 'FILE'
+  const [uploadMode, setUploadMode] = useState('FILE'); // 'URL' | 'FILE'
   const [imageUrl, setImageUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -109,7 +121,7 @@ export default function AdsManagement() {
   const [activeStartTime, setActiveStartTime] = useState('09:00');
   const [activeEndTime, setActiveEndTime] = useState('22:00');
   const [activeDays, setActiveDays] = useState(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
-  const [rotationSpeed, setRotationSpeed] = useState(5);
+  const [rotationSpeed, setRotationSpeed] = useState(8);
 
   useEffect(() => {
     const loadAds = () => {
@@ -207,6 +219,43 @@ export default function AdsManagement() {
     toast.showSuccess('Status Toggled', `Campaign is now ${newStatus}.`);
   };
 
+  const handleEditClick = (ad) => {
+    setEditingAd(ad);
+    setTitle(ad.title || '');
+    setAdvertiser(ad.advertiser || '');
+    setPlacement(ad.placement === 'Merchant Dashboard (Vertical Skyscraper)' ? 'Sidebar' : ad.placement === 'POS Dual-Screen (Horizontal Leaderboard)' ? 'Footer' : ad.placement);
+    setAspectRatio(ad.aspectRatio || '1:2 (300x600)');
+    setTargetUrl(ad.targetUrl || '');
+    setImageUrl(ad.imageUrl || '');
+    setUploadMode(ad.imageStorageType === 'indexeddb' ? 'FILE' : 'URL');
+    setRevenue(ad.revenue || '');
+    setPaymentStatus(ad.paymentStatus || 'paid');
+    setStartDate(ad.startDate ? ad.startDate.slice(0, 10) : '');
+    setEndDate(ad.endDate ? ad.endDate.slice(0, 10) : '');
+    setRestrictHours(ad.restrictHours || false);
+    setActiveStartTime(ad.activeStartTime || '09:00');
+    setActiveEndTime(ad.activeEndTime || '22:00');
+    setRotationSpeed(ad.rotationSpeed || 8);
+    setShowCreateModal(true);
+  };
+
+  const handleNewAdClick = () => {
+    setEditingAd(null);
+    setTitle('');
+    setAdvertiser('');
+    setPlacement('Sidebar');
+    setTargetUrl('');
+    setImageUrl('');
+    setUploadMode('FILE');
+    setRevenue('');
+    setPaymentStatus('paid');
+    setStartDate('');
+    setEndDate('');
+    setRestrictHours(false);
+    setRotationSpeed(8);
+    setShowCreateModal(true);
+  };
+
   // Delete Campaign
   const handleDelete = (id, label) => {
     setConfirmDialog({
@@ -238,18 +287,18 @@ export default function AdsManagement() {
     toast.showSuccess('Campaign Extended', 'Ad campaign validity extended by 30 days.');
   };
 
-  // Save new campaign
+  // Save new/edited campaign
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
-    if (!title || !advertiser || !targetUrl || !startDate || !endDate) {
-      toast.showError('Validation Error', 'Please fill in all campaign fields.');
+    if (!title || !advertiser || !targetUrl) {
+      toast.showError('Validation Error', 'Please fill in Title, Brand and Redirect URL.');
       return;
     }
 
-    const campaignId = "AD-" + Date.now().toString().slice(-4);
+    const campaignId = editingAd ? editingAd.id : ("AD-" + Date.now().toString().slice(-4));
     let finalImageUrl = imageUrl;
-    let imageStorageType = "";
-    let imageId = "";
+    let imageStorageType = editingAd ? editingAd.imageStorageType : "";
+    let imageId = editingAd ? editingAd.imageId : "";
 
     if (uploadMode === 'FILE' && selectedFile) {
       try {
@@ -263,41 +312,49 @@ export default function AdsManagement() {
       }
     }
 
-    const newAd = {
+    const adData = {
       id: campaignId,
       title,
       advertiser: advertiser.trim(),
       placement,
-      aspectRatio,
+      aspectRatio: placement === 'Sidebar' ? '1:2 (300x600)' : '16:9 (1200x628)',
       imageUrl: finalImageUrl,
       imageStorageType,
       imageId,
       targetUrl,
-      impressions: 0,
-      clicks: 0,
+      impressions: editingAd ? editingAd.impressions : 0,
+      clicks: editingAd ? editingAd.clicks : 0,
       revenue: parseFloat(revenue) || 0,
       paymentStatus: paymentStatus,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
+      startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
+      endDate: endDate ? new Date(endDate).toISOString() : new Date(Date.now() + 86400000 * 365 * 10).toISOString(),
       restrictHours,
       activeStartTime,
       activeEndTime,
-      activeDays,
-      rotationSpeed: Number(rotationSpeed) || 5,
-      status: "ACTIVE"
+      activeDays: editingAd ? editingAd.activeDays : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+      rotationSpeed: Number(rotationSpeed) || 8,
+      status: editingAd ? editingAd.status : "ACTIVE"
     };
 
-    const updated = [newAd, ...ads];
+    let updated;
+    if (editingAd) {
+      updated = ads.map(a => a.id === editingAd.id ? adData : a);
+      toast.showSuccess('Campaign Updated', `Ad Campaign "${title}" was updated successfully.`);
+    } else {
+      updated = [adData, ...ads];
+      toast.showSuccess('Campaign Created', `Ad Campaign "${title}" launched successfully.`);
+    }
+
     saveAds(updated);
 
     logActivity({
-      activityType: 'AD_CAMPAIGN_CREATED',
+      activityType: editingAd ? 'AD_CAMPAIGN_UPDATED' : 'AD_CAMPAIGN_CREATED',
       module: 'Advertisements',
-      actionDescription: `Created ad campaign "${title}" by "${advertiser}" targeting ${placement}.`
+      actionDescription: `${editingAd ? 'Updated' : 'Created'} ad campaign "${title}" targeting ${placement}.`
     });
 
-    toast.showSuccess('Campaign Created', `Ad Campaign "${title}" launched successfully.`);
     setShowCreateModal(false);
+    setEditingAd(null);
     setTitle('');
     setAdvertiser('');
     setTargetUrl('');
@@ -307,21 +364,35 @@ export default function AdsManagement() {
     setImageUrl('');
     setSelectedFile(null);
     setRestrictHours(false);
-    setActiveStartTime('09:00');
-    setActiveEndTime('22:00');
-    setActiveDays(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
-    setRotationSpeed(5);
+    setRotationSpeed(8);
   };
 
   // Handle file change
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.showError('File Too Large', 'Maximum file size allowed is 5 MB.');
+      if (file.size > IMAGE_LIMITS.maxSizeBytes) {
+        toast.showError('File Too Large', `Maximum file size allowed is ${IMAGE_LIMITS.maxSizeMB} MB.`);
+        e.target.value = '';
         return;
       }
-      setSelectedFile(file);
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const width = img.width;
+        const height = img.height;
+        const key = placement === 'Footer' || placement.includes('Leaderboard') ? 'Footer' : 'Sidebar';
+        const limit = IMAGE_LIMITS.dimensions[key];
+        
+        if (width > limit.maxWidth || height > limit.maxHeight) {
+          toast.showError('Dimension Mismatch', `Banner dimensions exceed maximum allowed size (${limit.maxWidth}x${limit.maxHeight}px). Recommended size: ${limit.recommended}.`);
+          setSelectedFile(null);
+          e.target.value = '';
+          return;
+        }
+        setSelectedFile(file);
+      };
     }
   };
 
@@ -336,9 +407,9 @@ export default function AdsManagement() {
     let matchesSlot = true;
     if (slotTypeFilter !== 'ALL') {
       if (slotTypeFilter === 'VERTICAL') {
-        matchesSlot = ad.placement.includes('Vertical') || ad.aspectRatio.includes('1:2');
+        matchesSlot = ad.placement.includes('Vertical') || ad.aspectRatio.includes('1:2') || ad.placement === 'Sidebar';
       } else if (slotTypeFilter === 'HORIZONTAL') {
-        matchesSlot = ad.placement.includes('Horizontal') || ad.aspectRatio.includes('16:9');
+        matchesSlot = ad.placement.includes('Horizontal') || ad.aspectRatio.includes('16:9') || ad.placement === 'Footer';
       }
     }
 
@@ -443,23 +514,13 @@ export default function AdsManagement() {
     toast.showSuccess('Report Exported', 'CSV Campaign report downloaded.');
   };
 
+  const activeFooterAds = ads.filter(a => a.status === 'ACTIVE' && (a.placement === 'Footer' || a.placement.includes('Leaderboard')) && isAdCurrentlyEligible(a));
+  const activeSidebarAds = ads.filter(a => a.status === 'ACTIVE' && (a.placement === 'Sidebar' || a.placement.includes('Skyscraper')) && isAdCurrentlyEligible(a));
+
   const tableHeaders = [
-    { 
-      label: (
-        <input 
-          type="checkbox" 
-          checked={filteredAds.length > 0 && selectedAdIds.length === filteredAds.length} 
-          onChange={handleSelectAll} 
-          style={{ cursor: 'pointer' }}
-        />
-      ) 
-    },
-    { label: 'Campaign Info' },
-    { label: 'Advertiser' },
-    { label: 'Placement & Ratio' },
-    { label: 'Performance' },
-    { label: 'Revenue' },
-    { label: 'Payment' },
+    { label: 'Ad Info' },
+    { label: 'Placement' },
+    { label: 'Rotation' },
     { label: 'Status' },
     { label: 'Actions', style: { textAlign: 'right' } }
   ];
@@ -476,7 +537,7 @@ export default function AdsManagement() {
             <Button variant="secondary" onClick={() => handleExportCSV(ads)}>
               <Download size={14} /> Export Report
             </Button>
-            <Button variant="purple" onClick={() => setShowCreateModal(true)}>
+            <Button variant="purple" onClick={handleNewAdClick}>
               <Plus size={14} /> New Ad Campaign
             </Button>
           </div>
@@ -568,97 +629,81 @@ export default function AdsManagement() {
         </div>
       )}
 
+      {/* Rotation Status Info Note */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: 'var(--bg-control)', border: '1px solid var(--border-muted)', padding: '10px 14px', borderRadius: '10px' }}>
+        <span style={{ fontSize: '0.725rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+          🔄 Current Rotation Status:
+        </span>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+            <strong>Sidebar:</strong> {activeSidebarAds.length} active ad{activeSidebarAds.length !== 1 ? 's' : ''} {activeSidebarAds.length > 0 && `(rotating every ${activeSidebarAds[0]?.rotationSpeed || 8}s)`}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+            <strong>Footer:</strong> {activeFooterAds.length} active ad{activeFooterAds.length !== 1 ? 's' : ''} {activeFooterAds.length > 0 && `(rotating every ${activeFooterAds[0]?.rotationSpeed || 8}s)`}
+          </span>
+        </div>
+      </div>
+
       {/* Table view */}
       <Card style={{ padding: '16px' }}>
         <Table headers={tableHeaders}>
           {filteredAds.length === 0 ? (
             <tr>
-              <td colSpan={9} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
-                No advertising campaigns matching filters.
+              <td colSpan={5} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+                No ads matching filters.
               </td>
             </tr>
           ) : (
             filteredAds.map(ad => {
-              const adCTR = ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : '0.00';
-              const isChecked = selectedAdIds.includes(ad.id);
+              const compStatus = getAdStatus(ad);
+              const badgeVariant = 
+                compStatus === 'LIVE_NOW' ? 'success' :
+                compStatus === 'PAUSED' ? 'warning' :
+                compStatus === 'EXPIRED' ? 'danger' :
+                compStatus === 'SCHEDULED' ? 'info' : 'secondary';
+              
+              const badgeLabel = 
+                compStatus === 'LIVE_NOW' ? 'Active' :
+                compStatus === 'PAUSED' ? 'Paused' :
+                compStatus === 'EXPIRED' ? 'Expired' :
+                compStatus === 'SCHEDULED' ? 'Scheduled' : 'Inactive';
+
               return (
-                <tr key={ad.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
-                  <td style={{ padding: '14px 16px', width: '40px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={isChecked} 
-                      onChange={() => handleSelectRow(ad.id)} 
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </td>
+                <tr key={ad.id} style={{ borderBottom: '1px solid var(--border-muted)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-control)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {ad.imageUrl || ad.imageId ? (
                           <AdImage ad={ad} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          <Megaphone size={14} style={{ color: '#9ca3af' }} />
+                          <Megaphone size={14} style={{ color: 'var(--text-muted)' }} />
                         )}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <strong style={{ fontWeight: 700, color: '#111827' }}>{ad.title}</strong>
-                        <span style={{ fontSize: '0.675rem', color: '#6b7280' }}>ID: {ad.id}</span>
+                        <strong style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</strong>
+                        <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>{ad.advertiser}</span>
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{ad.advertiser}</td>
                   <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontWeight: 600 }}>{ad.placement}</span>
-                      <span style={{ fontSize: '0.675rem', color: '#6b7280' }}>Ratio: {ad.aspectRatio}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span><strong>{ad.clicks}</strong> Clicks • <strong>{adCTR}%</strong> CTR</span>
-                      <span style={{ fontSize: '0.675rem', color: '#6b7280' }}>{ad.impressions.toLocaleString()} Impressions</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700 }}>₹{ad.revenue.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <Badge variant={ad.paymentStatus === 'paid' ? 'success' : 'warning'}>
-                      {ad.paymentStatus === 'paid' ? 'PAID' : 'PENDING'}
+                    <Badge variant={ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'info' : 'secondary'}>
+                      {ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'Footer' : 'Sidebar'}
                     </Badge>
                   </td>
+                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{ad.rotationSpeed || 8}s</td>
                   <td style={{ padding: '14px 16px' }}>
-                    {(() => {
-                      const compStatus = getAdStatus(ad);
-                      const badgeVariant = 
-                        compStatus === 'LIVE_NOW' ? 'success' :
-                        compStatus === 'PAUSED' ? 'warning' :
-                        compStatus === 'EXPIRED' ? 'danger' :
-                        compStatus === 'SCHEDULED' ? 'info' : 'secondary';
-                      
-                      const badgeLabel = 
-                        compStatus === 'LIVE_NOW' ? 'Live Now' :
-                        compStatus === 'PAUSED' ? 'Paused' :
-                        compStatus === 'EXPIRED' ? 'Expired' :
-                        compStatus === 'SCHEDULED' ? 'Scheduled' : 'Outside Hours';
-                      return (
-                        <Badge variant={badgeVariant}>
-                          {badgeLabel}
-                        </Badge>
-                      );
-                    })()}
+                    <Badge variant={badgeVariant}>{badgeLabel}</Badge>
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                      <Button variant="secondary" onClick={() => setPreviewAd(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem', gap: '4px' }}>
-                        <Eye size={12} /> Live Preview
-                      </Button>
-                      <Button variant="secondary" onClick={() => setInspectingAd(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
-                        <Eye size={12} /> Inspect
+                      <Button variant="secondary" onClick={() => handleEditClick(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                        Edit
                       </Button>
                       <Button variant="secondary" onClick={() => handleToggleStatus(ad.id, ad.status)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
-                        {ad.status === 'ACTIVE' ? <Pause size={12} /> : <Play size={12} />}
+                        {ad.status === 'ACTIVE' ? 'Pause' : 'Activate'}
                       </Button>
                       <Button variant="secondary" onClick={() => handleDelete(ad.id, ad.title)} style={{ padding: '4px 8px', fontSize: '0.7rem', color: '#ef4444' }}>
-                        <Trash2 size={12} />
+                        Delete
                       </Button>
                     </div>
                   </td>
@@ -697,12 +742,12 @@ export default function AdsManagement() {
         </Table>
       </Card>
 
-      {/* New Campaign Modal */}
+      {/* New/Edit Campaign Modal */}
       {showCreateModal && (
         <>
           <div 
-            onClick={() => setShowCreateModal(false)}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)', zIndex: 9998 }}
+            onClick={() => { setShowCreateModal(false); setEditingAd(null); }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 9998 }}
           />
           <form onSubmit={handleCreateCampaign} style={{
             position: 'fixed',
@@ -710,10 +755,10 @@ export default function AdsManagement() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: '445px',
-            background: '#ffffff',
+            background: 'var(--bg-card)',
             borderRadius: '16px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            border: '1px solid var(--border-muted)',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
             padding: '24px',
             zIndex: 9999,
             display: 'flex',
@@ -722,13 +767,21 @@ export default function AdsManagement() {
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
-            <div style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 800, fontSize: '1rem' }}>Create Ad Campaign</span>
-              <button type="button" onClick={() => setShowCreateModal(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: '#9ca3af' }}>×</button>
+            <div style={{ borderBottom: '1px solid var(--border-muted)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                {editingAd ? 'Edit Ad Campaign' : 'Create Ad Campaign'}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => { setShowCreateModal(false); setEditingAd(null); }} 
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}
+              >
+                ×
+              </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Campaign Title *</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Campaign Title *</span>
               <Input 
                 type="text" 
                 placeholder="e.g. Pro Upgrade Offer"
@@ -739,7 +792,7 @@ export default function AdsManagement() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Advertiser / Brand Name *</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Advertiser / Brand Name *</span>
               <Input 
                 type="text" 
                 placeholder="e.g. Apex Hardware Solutions"
@@ -749,85 +802,75 @@ export default function AdsManagement() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Placement *</span>
-                <Select value={placement} onChange={e => setPlacement(e.target.value)}>
-                  <option value="Merchant Dashboard (Vertical Skyscraper)">Dashboard Skyscraper</option>
-                  <option value="POS Dual-Screen (Horizontal Leaderboard)">POS Leaderboard</option>
-                  <option value="Thermal Invoice Footer">Receipt Footer</option>
-                </Select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Aspect Ratio *</span>
-                <Select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)}>
-                  <option value="1:2 (300x600)">1:2 (300x600)</option>
-                  <option value="16:9 (1200x628)">16:9 (1200x628)</option>
-                  <option value="Text & Mini QR">Text / QR</option>
-                </Select>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Placement *</span>
+              <Select value={placement} onChange={e => { setPlacement(e.target.value); setSelectedFile(null); }}>
+                <option value="Sidebar">Sidebar Banner</option>
+                <option value="Footer">Footer Banner</option>
+              </Select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Ad Revenue (₹)</span>
-                <Input 
-                  type="number" 
-                  placeholder="e.g. 15000"
-                  value={revenue}
-                  onChange={e => setRevenue(e.target.value)}
-                />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Image Creative</span>
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-muted)', gap: '12px', marginBottom: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setUploadMode('FILE')}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    background: 'transparent',
+                    borderBottom: uploadMode === 'FILE' ? '2px solid var(--accent-primary)' : 'none',
+                    color: uploadMode === 'FILE' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Upload File
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setUploadMode('URL')}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    background: 'transparent',
+                    borderBottom: uploadMode === 'URL' ? '2px solid var(--accent-primary)' : 'none',
+                    color: uploadMode === 'URL' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Image URL
+                </button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Payment Status</span>
-                <Select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}>
-                  <option value="paid">Paid</option>
-                  <option value="pending">Pending</option>
-                </Select>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                type="button" 
-                onClick={() => setUploadMode('URL')}
-                style={{ flex: 1, padding: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #d1d5db', borderRadius: '6px', background: uploadMode === 'URL' ? '#e0f2fe' : '#ffffff', color: uploadMode === 'URL' ? '#0369a1' : '#4b5563', cursor: 'pointer' }}
-              >
-                Image URL
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setUploadMode('FILE')}
-                style={{ flex: 1, padding: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #d1d5db', borderRadius: '6px', background: uploadMode === 'FILE' ? '#e0f2fe' : '#ffffff', color: uploadMode === 'FILE' ? '#0369a1' : '#4b5563', cursor: 'pointer' }}
-              >
-                Upload File
-              </button>
-            </div>
-
-            {uploadMode === 'URL' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Image URL</span>
+              {uploadMode === 'URL' ? (
                 <Input 
                   type="text" 
                   placeholder="https://example.com/banner.jpg"
                   value={imageUrl}
                   onChange={e => setImageUrl(e.target.value)}
                 />
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Upload File (Max 5MB)</span>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  style={{ fontSize: '0.8rem' }}
-                />
-              </div>
-            )}
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}
+                  />
+                  <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Max file size: {IMAGE_LIMITS.maxSizeMB}MB • Recommended: {IMAGE_LIMITS.dimensions[placement === 'Footer' ? 'Footer' : 'Sidebar']?.recommended}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Target Redirect URL *</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Target Redirect URL *</span>
               <Input 
                 type="text" 
                 placeholder="https://example.com"
@@ -837,157 +880,175 @@ export default function AdsManagement() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Start Date *</span>
-                <Input 
-                  type="date" 
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>End Date *</span>
-                <Input 
-                  type="date" 
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* SCHEDULE & TIMING SECTION */}
-            <div style={{ margin: '8px 0', height: '1px', background: '#e5e7eb' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              SCHEDULE & TIMING
-            </span>
-
-            {/* Restrict Hours Toggle */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Restrict to specific hours</span>
-              <input 
-                type="checkbox" 
-                checked={restrictHours}
-                onChange={e => setRestrictHours(e.target.checked)}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>Rotation Interval (seconds) *</span>
+              <Input 
+                type="number"
+                min="1"
+                max="60"
+                value={rotationSpeed}
+                onChange={e => setRotationSpeed(e.target.value)}
+                required
               />
+              <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
+                Ad will show for {rotationSpeed || 8} seconds before rotating.
+              </span>
             </div>
 
-            {/* Start & End Times */}
-            {restrictHours && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600 }}>Start Time</span>
+            {/* SCHEDULE SECTION (COLLAPSED OPTIONAL) */}
+            <button 
+              type="button" 
+              onClick={() => setShowScheduleSettings(!showScheduleSettings)}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: 'var(--bg-control)',
+                border: '1px solid var(--border-muted)',
+                color: 'var(--text-primary)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              <span>Schedule Settings (optional)</span>
+              <span>{showScheduleSettings ? '▲' : '▼'}</span>
+            </button>
+
+            {showScheduleSettings && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', border: '1px solid var(--border-muted)', borderRadius: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Start Date</span>
+                    <Input 
+                      type="date" 
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>End Date</span>
+                    <Input 
+                      type="date" 
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Restrict to specific hours</span>
                   <input 
-                    type="time" 
-                    value={activeStartTime}
-                    onChange={e => setActiveStartTime(e.target.value)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '0.8rem',
-                      outline: 'none',
-                      background: '#ffffff'
-                    }}
+                    type="checkbox" 
+                    checked={restrictHours}
+                    onChange={e => setRestrictHours(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600 }}>End Time</span>
-                  <input 
-                    type="time" 
-                    value={activeEndTime}
-                    onChange={e => setActiveEndTime(e.target.value)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '0.8rem',
-                      outline: 'none',
-                      background: '#ffffff'
-                    }}
-                  />
+
+                {restrictHours && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Start Time</span>
+                      <input 
+                        type="time" 
+                        value={activeStartTime}
+                        onChange={e => setActiveStartTime(e.target.value)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-muted)',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>End Time</span>
+                      <input 
+                        type="time" 
+                        value={activeEndTime}
+                        onChange={e => setActiveEndTime(e.target.value)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-muted)',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* BILLING INFO SECTION (COLLAPSED OPTIONAL) */}
+            <button 
+              type="button" 
+              onClick={() => setShowBillingSettings(!showBillingSettings)}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: 'var(--bg-control)',
+                border: '1px solid var(--border-muted)',
+                color: 'var(--text-primary)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              <span>Billing Info (optional)</span>
+              <span>{showBillingSettings ? '▲' : '▼'}</span>
+            </button>
+
+            {showBillingSettings && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', border: '1px solid var(--border-muted)', borderRadius: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Ad Revenue (₹)</span>
+                    <Input 
+                      type="number" 
+                      placeholder="e.g. 15000"
+                      value={revenue}
+                      onChange={e => setRevenue(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Payment Status</span>
+                    <Select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}>
+                      <option value="paid">Paid</option>
+                      <option value="pending">Pending</option>
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Active Days Chips */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Active Days</span>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {[
-                  { key: 'mon', label: 'Mon' },
-                  { key: 'tue', label: 'Tue' },
-                  { key: 'wed', label: 'Wed' },
-                  { key: 'thu', label: 'Thu' },
-                  { key: 'fri', label: 'Fri' },
-                  { key: 'sat', label: 'Sat' },
-                  { key: 'sun', label: 'Sun' }
-                ].map(d => {
-                  const isSelected = activeDays.includes(d.key);
-                  return (
-                    <button
-                      key={d.key}
-                      type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setActiveDays(prev => prev.filter(x => x !== d.key));
-                        } else {
-                          setActiveDays(prev => [...prev, d.key]);
-                        }
-                      }}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        borderRadius: '6px',
-                        border: isSelected ? '1px solid #7c3aed' : '1px solid #d1d5db',
-                        background: isSelected ? '#f5f3ff' : '#ffffff',
-                        color: isSelected ? '#7c3aed' : '#4b5563',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {d.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Rotation Speed & Preview Summary */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Rotation Speed (seconds)</span>
-              <Input 
-                type="number"
-                min="3"
-                max="30"
-                value={rotationSpeed}
-                onChange={e => setRotationSpeed(e.target.value)}
-              />
-            </div>
-
-            {/* PREVIEW SCHEDULE SUMMARY MOCK */}
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Preview Schedule</span>
-              <span style={{ fontSize: '0.75rem', color: '#334155', lineHeight: '1.4' }}>
-                This ad will run from {startDate ? new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Starts'} to {endDate ? new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ends'}, {restrictHours ? `daily between ${activeStartTime}–${activeEndTime}` : 'all day 24/7'}, on {activeDays.map(d => d.toUpperCase()).join(', ') || 'No days selected'}.
-              </span>
-            </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
               <button 
                 type="button" 
-                onClick={() => setShowCreateModal(false)}
-                style={{ flex: 1, padding: '10px', background: '#ffffff', border: '1px solid #d1d5db', borderRadius: '8px', color: '#4b5563', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => { setShowCreateModal(false); setEditingAd(null); }}
+                style={{ flex: 1, padding: '10px', background: 'var(--bg-control)', border: '1px solid var(--border-muted)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button 
                 type="submit" 
-                style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #7c3aed, #4f46e5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
               >
-                Create Campaign
+                {editingAd ? 'Save Changes' : 'Create Campaign'}
               </button>
             </div>
           </form>
