@@ -322,7 +322,7 @@ export default function DataSyncReport() {
       />
 
       {/* KPI Telemetry Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
         <StatCard
           label={
@@ -453,7 +453,7 @@ export default function DataSyncReport() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="responsive-filter-bar">
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '220px' }}>
             <Input 
               type="text" 
@@ -476,66 +476,87 @@ export default function DataSyncReport() {
       </Card>
 
       {/* Sync Telemetry Table */}
-      <Table headers={tableHeaders}>
-        {filtered.length === 0 ? (
-          <tr>
-            <td colSpan={7} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
-              No telemetry sync logs matching active filters.
-            </td>
-          </tr>
-        ) : (
-          filtered.map(log => (
-            <tr key={log.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 700, color: '#111827' }}>{log.id}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
-                    {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
-                  </span>
-                </div>
+      <div className="desktop-view">
+        <Table headers={tableHeaders}>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colSpan={7} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+                No telemetry sync logs matching active filters.
               </td>
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontWeight: 600, color: '#111827' }}>{log.terminalName}</span>
-                    <span style={{ background: '#f3e8ff', color: '#6b21a8', fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
-                      {log.terminalCode}
+            </tr>
+          ) : (
+            filtered.map(log => (
+              <tr key={log.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 700, color: '#111827' }}>{log.id}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+                      {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
                     </span>
                   </div>
-                  <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>MAC: {log.deviceMac}</span>
-                </div>
-              </td>
-              <td style={{ padding: '14px 16px' }}>
-                <span style={{ display: 'inline-flex', padding: '3px 8px', fontSize: '0.725rem', fontWeight: 700, borderRadius: '9999px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
-                  {log.category}
-                </span>
-              </td>
-              <td style={{ padding: '14px 16px', fontWeight: 700 }}>{log.recordsCount} items</td>
-              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{log.latencyMs}ms</td>
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <Badge variant={log.status === 'SUCCESS' ? 'success' : log.status === 'FAILED' ? 'danger' : 'warning'}>
-                    {log.status}
-                  </Badge>
-                  {log.status === 'FAILED' && log.errorMessage && (
-                    <span style={{ fontSize: '0.65rem', color: '#ef4444', maxWidth: '150px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={log.errorMessage}>
-                      {log.errorMessage}
-                    </span>
-                  )}
-                </div>
-              </td>
-              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                  
-                  {log.status === 'FAILED' && (
+                </td>
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontWeight: 600, color: '#111827' }}>{log.terminalName}</span>
+                      <span style={{ background: '#f3e8ff', color: '#6b21a8', fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                        {log.terminalCode}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.725rem', color: '#6b7280' }}>MAC: {log.deviceMac}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '14px 16px' }}>
+                  <span style={{ display: 'inline-flex', padding: '3px 8px', fontSize: '0.725rem', fontWeight: 700, borderRadius: '9999px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                    {log.category}
+                  </span>
+                </td>
+                <td style={{ padding: '14px 16px', fontWeight: 700 }}>{log.recordsCount} items</td>
+                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{log.latencyMs}ms</td>
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Badge variant={log.status === 'SUCCESS' ? 'success' : log.status === 'FAILED' ? 'danger' : 'warning'}>
+                      {log.status}
+                    </Badge>
+                    {log.status === 'FAILED' && log.errorMessage && (
+                      <span style={{ fontSize: '0.65rem', color: '#ef4444', maxWidth: '150px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={log.errorMessage}>
+                        {log.errorMessage}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    
+                    {log.status === 'FAILED' && (
+                      <button
+                        onClick={() => handleRetry(log)}
+                        style={{
+                          padding: '6px 10px',
+                          background: '#d1fae5',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#065f46',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                      >
+                        <Play size={10} /> Retry
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => handleRetry(log)}
+                      onClick={() => setInspectingLog(log)}
                       style={{
                         padding: '6px 10px',
-                        background: '#d1fae5',
-                        border: 'none',
+                        background: '#ffffff',
+                        border: '1px solid #d1d5db',
                         borderRadius: '6px',
-                        color: '#065f46',
+                        color: '#4b5563',
                         fontSize: '0.7rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -544,35 +565,61 @@ export default function DataSyncReport() {
                         gap: '3px'
                       }}
                     >
-                      <Play size={10} /> Retry
+                      <Eye size={11} /> Inspect
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => setInspectingLog(log)}
-                    style={{
-                      padding: '6px 10px',
-                      background: '#ffffff',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      color: '#4b5563',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px'
-                    }}
-                  >
-                    <Eye size={11} /> Inspect
-                  </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </Table>
+      </div>
 
+      <div className="mobile-view">
+        {filtered.length === 0 ? (
+          <Card style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+            No telemetry sync logs matching active filters.
+          </Card>
+        ) : (
+          filtered.map(log => (
+            <Card key={log.id} style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--bg-control)', border: '1px solid var(--border-muted)', borderRadius: '12px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{log.id}</span>
+                <Badge variant={log.status === 'SUCCESS' ? 'success' : log.status === 'FAILED' ? 'danger' : 'warning'}>
+                  {log.status}
+                </Badge>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
+                <div><span style={{ color: 'var(--text-muted)' }}>Terminal:</span> <span style={{ fontWeight: 600 }}>{log.terminalName}</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Category:</span> <span>{log.category}</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Records:</span> <span>{log.recordsCount} items</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Latency:</span> <span>{log.latencyMs}ms</span></div>
+              </div>
+              {log.status === 'FAILED' && log.errorMessage && (
+                <div style={{ fontSize: '0.75rem', color: '#ef4444', background: '#fee2e2', padding: '4px 8px', borderRadius: '4px' }}>
+                  {log.errorMessage}
                 </div>
-              </td>
-            </tr>
+              )}
+              <div style={{ borderTop: '1px solid var(--border-muted)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-dim)' }}>
+                  {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
+                </span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {log.status === 'FAILED' && (
+                    <Button variant="secondary" onClick={() => handleRetry(log)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                      Retry
+                    </Button>
+                  )}
+                  <Button variant="secondary" onClick={() => setInspectingLog(log)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                    Inspect
+                  </Button>
+                </div>
+              </div>
+            </Card>
           ))
         )}
-      </Table>
+      </div>
 
       {/* JSON Payload Inspector Modal */}
       <Modal
@@ -580,7 +627,7 @@ export default function DataSyncReport() {
         onClose={() => setInspectingLog(null)}
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <FileText size={16} style={{ color: '#7c3aed' }} /> Inspect Sync Batch Payload
+            <FileText size={16} style={{ color: '#035096' }} /> Inspect Sync Batch Payload
           </span>
         }
         width="420px"
@@ -601,7 +648,7 @@ export default function DataSyncReport() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Payload Class:</span>
-                <span style={{ fontWeight: 600, color: '#7c3aed' }}>{inspectingLog.category || 'Unclassified'}</span>
+                <span style={{ fontWeight: 600, color: '#035096' }}>{inspectingLog.category || 'Unclassified'}</span>
               </div>
               {inspectingLog.recordsCount !== undefined && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>

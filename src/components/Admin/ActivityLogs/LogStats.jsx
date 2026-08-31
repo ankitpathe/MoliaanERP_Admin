@@ -35,7 +35,7 @@ export default function LogStats({ logs }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+    <div className="responsive-grid-4">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (

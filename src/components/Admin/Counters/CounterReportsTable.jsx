@@ -263,15 +263,15 @@ export default function CounterReportsTable() {
       />
 
       {/* Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <StatCard label="Total Terminals" value={counters.length} icon={Monitor} color="#4f46e5" />
+      <div className="responsive-grid-4">
+        <StatCard label="Total Terminals" value={counters.length} icon={Monitor} color="#3fa9f5" />
         <StatCard label="Online Terminals" value={counters.filter(c => c.status === 'ONLINE').length} icon={Activity} color="#10b981" />
         <StatCard label="Active Sessions" value={counters.filter(c => c.assignedStaff && c.assignedStaff !== 'Staff' && c.assignedStaff.trim() !== '').length} icon={Radio} color="#0891b2" />
         <StatCard label="Total Shift Sales" value={`₹${totalShiftSales.toLocaleString('en-IN')}`} icon={Monitor} color="#dc2626" />
       </div>
 
       {/* Filters Card */}
-      <Card style={{ padding: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <Card className="responsive-filter-bar" style={{ padding: '16px' }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '220px' }}>
           <Input 
             type="text" 
@@ -298,18 +298,123 @@ export default function CounterReportsTable() {
       </Card>
 
       {/* Table Section */}
-      <Table headers={headers}>
+      <div className="desktop-view">
+        <Table headers={headers}>
+          {counters.length === 0 ? (
+            <tr>
+              <td colSpan={7} style={{ padding: '40px 16px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>No counters registered yet</span>
+                  <Button variant="purple" onClick={() => navigate('/admin/counters/new')}>
+                    Add New Counter
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            counters.map((c, idx) => {
+              const isOnline = String(c.status).toUpperCase() === 'ONLINE';
+
+              const matchesSearch = !search ||
+                (c.code || '').toLowerCase().includes(search.toLowerCase()) ||
+                (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                (c.location || '').toLowerCase().includes(search.toLowerCase());
+
+              const matchesStatus = 
+                statusFilter === 'All' || 
+                (statusFilter === 'Active' && isOnline) ||
+                (statusFilter === 'Inactive' && !isOnline);
+
+              const matchesBranch = branchFilter === 'All' || (c.location || c.branch) === branchFilter;
+              
+              const isVisible = matchesSearch && matchesStatus && matchesBranch;
+
+              return (
+                <tr 
+                  key={c.id || idx} 
+                  style={{ 
+                    borderBottom: '1px solid #f3f4f6', 
+                    fontSize: '0.8rem', 
+                    color: '#374151',
+                    display: isVisible ? 'table-row' : 'none'
+                  }}
+                >
+                  <td style={{ padding: '14px 16px' }}>
+                    <span 
+                      onClick={() => navigate(`/admin/counters/${c.id}`)}
+                      style={{ color: '#035096', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', transition: 'color 0.15s' }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.textDecoration = 'underline';
+                        e.currentTarget.style.color = '#6d28d9';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.textDecoration = 'none';
+                        e.currentTarget.style.color = '#035096';
+                      }}
+                    >
+                      {c.name || 'Unnamed Counter'}
+                      <span style={{ color: '#9ca3af', marginLeft: '6px', fontSize: '0.85rem', fontWeight: 'normal' }}>›</span>
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{c.code || 'N/A'}</td>
+                  <td style={{ padding: '14px 16px' }}>{c.location || 'Main Store'}</td>
+                  <td style={{ padding: '14px 16px', fontWeight: 500 }}>{c.assignedStaff || 'Staff'}</td>
+                  <td style={{ padding: '14px 16px' }}>{c.printerType || 'Thermal 80mm'}</td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <Badge variant={isOnline ? 'success' : 'danger'}>
+                        {isOnline ? 'ONLINE' : 'OFFLINE'}
+                      </Badge>
+                      {!isOnline && c.offlineQueue && c.offlineQueue.length > 0 && (
+                        <span style={{ fontSize: '0.675rem', color: '#ef4444', fontWeight: 700, background: '#fee2e2', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fca5a5' }}>
+                          {c.offlineQueue.length} queued
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                      <Button
+                        variant={isOnline ? 'secondary' : 'success'}
+                        onClick={() => handleToggleStatus(c.id)}
+                        style={!isOnline ? { color: '#10b981', borderColor: '#10b981', background: '#f0fdf4', padding: '4px 8px', fontSize: '0.75rem' } : { padding: '4px 8px', fontSize: '0.75rem' }}
+                      >
+                        {isOnline ? 'Set Offline' : 'Set Online'}
+                      </Button>
+                      <button 
+                        onClick={() => {
+                          setSelectedCounter(c);
+                          setIsDetailOpen(true);
+                        }}
+                        style={{ padding: '4px', background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}
+                        title="View Details"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCounter(c.id, c.name)}
+                        style={{ padding: '4px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                        title="Delete Terminal"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </Table>
+      </div>
+
+      <div className="mobile-view">
         {counters.length === 0 ? (
-          <tr>
-            <td colSpan={7} style={{ padding: '40px 16px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>No counters registered yet</span>
-                <Button variant="purple" onClick={() => navigate('/admin/counters/new')}>
-                  Add New Counter
-                </Button>
-              </div>
-            </td>
-          </tr>
+          <Card style={{ padding: '24px', textAlign: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500, display: 'block', marginBottom: '12px' }}>No counters registered yet</span>
+            <Button variant="purple" onClick={() => navigate('/admin/counters/new')}>
+              Add New Counter
+            </Button>
+          </Card>
         ) : (
           counters.map((c, idx) => {
             const isOnline = String(c.status).toUpperCase() === 'ONLINE';
@@ -328,82 +433,44 @@ export default function CounterReportsTable() {
             
             const isVisible = matchesSearch && matchesStatus && matchesBranch;
 
+            if (!isVisible) return null;
+
             return (
-              <tr 
-                key={c.id || idx} 
-                style={{ 
-                  borderBottom: '1px solid #f3f4f6', 
-                  fontSize: '0.8rem', 
-                  color: '#374151',
-                  display: isVisible ? 'table-row' : 'none'
-                }}
-              >
-                <td style={{ padding: '14px 16px' }}>
+              <Card key={c.id || idx} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span 
                     onClick={() => navigate(`/admin/counters/${c.id}`)}
-                    style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', transition: 'color 0.15s' }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.textDecoration = 'underline';
-                      e.currentTarget.style.color = '#6d28d9';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.textDecoration = 'none';
-                      e.currentTarget.style.color = '#7c3aed';
-                    }}
+                    style={{ color: '#035096', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem' }}
                   >
                     {c.name || 'Unnamed Counter'}
-                    <span style={{ color: '#9ca3af', marginLeft: '6px', fontSize: '0.85rem', fontWeight: 'normal' }}>›</span>
                   </span>
-                </td>
-                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{c.code || 'N/A'}</td>
-                <td style={{ padding: '14px 16px' }}>{c.location || 'Main Store'}</td>
-                <td style={{ padding: '14px 16px', fontWeight: 500 }}>{c.assignedStaff || 'Staff'}</td>
-                <td style={{ padding: '14px 16px' }}>{c.printerType || 'Thermal 80mm'}</td>
-                <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                    <Badge variant={isOnline ? 'success' : 'danger'}>
-                      {isOnline ? 'ONLINE' : 'OFFLINE'}
-                    </Badge>
-                    {!isOnline && c.offlineQueue && c.offlineQueue.length > 0 && (
-                      <span style={{ fontSize: '0.675rem', color: '#ef4444', fontWeight: 700, background: '#fee2e2', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fca5a5' }}>
-                        {c.offlineQueue.length} queued
-                      </span>
-                    )}
+                  <Badge variant={isOnline ? 'success' : 'danger'}>
+                    {isOnline ? 'ONLINE' : 'OFFLINE'}
+                  </Badge>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Code:</span> <span style={{ fontWeight: 600 }}>{c.code || 'N/A'}</span></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Location:</span> <span>{c.location || 'Main Store'}</span></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Staff:</span> <span>{c.assignedStaff || 'Staff'}</span></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Printer:</span> <span>{c.printerType || 'Thermal 80mm'}</span></div>
+                </div>
+                {c.offlineQueue && c.offlineQueue.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem' }}>
+                    <span style={{ color: '#ef4444', fontWeight: 700, background: '#fee2e2', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fca5a5' }}>
+                      {c.offlineQueue.length} queued syncs
+                    </span>
                   </div>
-                </td>
-                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                  <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                    <Button
-                      variant={isOnline ? 'secondary' : 'success'}
-                      onClick={() => handleToggleStatus(c.id)}
-                      style={!isOnline ? { color: '#10b981', borderColor: '#10b981', background: '#f0fdf4', padding: '4px 8px', fontSize: '0.75rem' } : { padding: '4px 8px', fontSize: '0.75rem' }}
-                    >
-                      {isOnline ? 'Set Offline' : 'Set Online'}
-                    </Button>
-                    <button 
-                      onClick={() => {
-                        setSelectedCounter(c);
-                        setIsDetailOpen(true);
-                      }}
-                      style={{ padding: '4px', background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}
-                      title="View Details"
-                    >
-                      <Eye size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteCounter(c.id, c.name)}
-                      style={{ padding: '4px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                      title="Delete Terminal"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                )}
+                <div style={{ borderTop: '1px solid var(--border-muted)', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <Button variant="secondary" onClick={() => navigate(`/admin/counters/${c.id}`)} style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+                    View Details
+                  </Button>
+                </div>
+              </Card>
             );
           })
         )}
-      </Table>
+      </div>
 
       {/* Sync Activity Line Chart */}
       <Card style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -415,7 +482,7 @@ export default function CounterReportsTable() {
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
               <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
               <Tooltip contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '6px', color: '#ffffff', fontSize: '0.75rem' }} />
-              <Line type="monotone" dataKey="syncs" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 0, fill: '#7c3aed' }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="syncs" stroke="#035096" strokeWidth={2.5} dot={{ r: 4, strokeWidth: 0, fill: '#035096' }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -462,7 +529,7 @@ export default function CounterReportsTable() {
             </button>
 
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Monitor size={18} style={{ color: '#7c3aed' }} /> Terminal Details
+              <Monitor size={18} style={{ color: '#035096' }} /> Terminal Details
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

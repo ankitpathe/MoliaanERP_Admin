@@ -14,11 +14,11 @@ export default function QuickActions() {
   const navigate = useNavigate();
 
   const actions = [
-    { label: 'Add User', icon: UserPlus, path: '/admin/users/new', color: '#4f46e5' },
+    { label: 'Add User', icon: UserPlus, path: '/admin/users/new', color: '#3fa9f5' },
     { label: 'Add Employee', icon: Briefcase, path: '/admin/employees/new', color: '#0891b2' },
     { label: 'Add Product', icon: PlusCircle, path: '/inventory/products', color: '#b45309' },
     { label: 'Create Sale / Invoice', icon: ShoppingCart, path: '/sales/pos', color: '#059669' },
-    { label: 'Add Customer', icon: Users, path: '/customers/ledger', color: '#4f46e5' },
+    { label: 'Add Customer', icon: Users, path: '/customers/ledger', color: '#3fa9f5' },
     { label: 'Add Supplier', icon: Truck, path: '/suppliers/ledger', color: '#0891b2' },
     { label: 'View Reports', icon: BarChart3, path: '/admin/reports', color: '#7c7a6e' }
   ];

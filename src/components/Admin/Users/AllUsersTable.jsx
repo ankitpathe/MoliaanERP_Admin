@@ -293,9 +293,9 @@ export default function AllUsersTable() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', boxSizing: 'border-box' }}>
       
       {/* KPI Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
-        <StatCard label="Registered Merchants" value={totalMerchants} icon={Users} color="#4f46e5" />
+        <StatCard label="Registered Merchants" value={totalMerchants} icon={Users} color="#3fa9f5" />
         
         {/* Active Stores card with green pulse */}
         <div style={{ 
@@ -363,7 +363,7 @@ export default function AllUsersTable() {
           })}
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="responsive-filter-bar">
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: '220px' }}>
             <Input 
               type="text" 
@@ -382,134 +382,184 @@ export default function AllUsersTable() {
       </Card>
 
       {/* Table grid view */}
-      <Table headers={tableHeaders}>
+      <div className="desktop-view">
+        <Table headers={tableHeaders}>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+                No merchant store records matching active filters.
+              </td>
+            </tr>
+          ) : (
+            filtered.map(merchant => (
+              <tr key={merchant.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <strong style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName || "WWE Arena Supermart"}</strong>
+                    <span 
+                      onClick={() => navigate(`/admin/users/${merchant.id}`)}
+                      style={{ fontSize: '0.725rem', color: '#035096', cursor: 'pointer', fontWeight: 600 }}
+                      onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                    >
+                      {merchant.ownerName || "Ankit Pathe"}
+                    </span>
+                    <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id || 'USR-101'}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.email || "ankit@wwearena.com"}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{merchant.phone || "9876543210"}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{merchant.city || 'Chhindwara'}</td>
+                <td style={{ padding: '14px 16px' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    padding: '4px 8px',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    backgroundColor: '#f3e8ff',
+                    color: '#6b21a8'
+                  }}>
+                    {merchant.activePlan || merchant.planName || 'WWE Pro Plan (₹899)'}
+                  </span>
+                </td>
+                
+                {/* POS Allocation usage bar */}
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '90px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4b5563' }}>
+                      {merchant.terminalsUsed ?? 1} / {merchant.terminalsAllowed ?? 3} Slots
+                    </span>
+                    <div style={{ width: '100%', height: '5px', background: '#e5e7eb', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{ 
+                        width: `${Math.min(100, Math.round(((merchant.terminalsUsed ?? 1) / (merchant.terminalsAllowed ?? 3)) * 100))}%`, 
+                        height: '100%', 
+                        background: (merchant.terminalsUsed ?? 1) >= (merchant.terminalsAllowed ?? 3) ? '#d97706' : '#10b981',
+                        transition: 'width 0.4s ease-out'
+                      }} />
+                    </div>
+                  </div>
+                </td>
+
+                <td style={{ padding: '14px 16px', color: '#6b7280' }}>
+                  {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "10 Jan 2026"}
+                </td>
+                <td style={{ padding: '14px 16px' }}>
+                  <Badge variant={String(merchant.status).toUpperCase() === 'ACTIVE' ? 'success' : 'danger'}>
+                    {String(merchant.status).toUpperCase()}
+                  </Badge>
+                </td>
+                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    
+                    <button
+                      onClick={() => handleToggleStatus(merchant.id, merchant.storeName, merchant.status)}
+                      style={{
+                        padding: '6px',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: merchant.status === 'ACTIVE' ? '#10b981' : '#9ca3af',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title={merchant.status === 'ACTIVE' ? 'Suspend Merchant' : 'Activate Merchant'}
+                    >
+                      {merchant.status === 'ACTIVE' ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+                    </button>
+
+                    <button
+                      onClick={() => triggerEdit(merchant)}
+                      style={{
+                        padding: '6px 10px',
+                        background: '#ffffff',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        color: '#4b5563',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                    >
+                      <Edit3 size={11} /> Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(merchant.id, merchant.storeName)}
+                      style={{
+                        padding: '6px',
+                        background: '#ffffff',
+                        border: '1px solid #fee2e2',
+                        borderRadius: '6px',
+                        color: '#dc2626',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </Table>
+      </div>
+
+      <div className="mobile-view">
         {filtered.length === 0 ? (
-          <tr>
-            <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
-              No merchant store records matching active filters.
-            </td>
-          </tr>
+          <Card style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+            No merchant store records matching active filters.
+          </Card>
         ) : (
           filtered.map(merchant => (
-            <tr key={merchant.id} style={{ borderBottom: '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <strong style={{ fontWeight: 700, color: '#111827' }}>{merchant.storeName || "WWE Arena Supermart"}</strong>
-                  <span 
-                    onClick={() => navigate(`/admin/users/${merchant.id}`)}
-                    style={{ fontSize: '0.725rem', color: '#7c3aed', cursor: 'pointer', fontWeight: 600 }}
-                    onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-                    onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-                  >
-                    {merchant.ownerName || "Ankit Pathe"}
-                  </span>
-                  <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>ID: {merchant.id || 'USR-101'}</span>
-                </div>
-              </td>
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#374151' }}>{merchant.email || "ankit@wwearena.com"}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{merchant.phone || "9876543210"}</span>
-                </div>
-              </td>
-              <td style={{ padding: '14px 16px', fontWeight: 600 }}>{merchant.city || 'Chhindwara'}</td>
-              <td style={{ padding: '14px 16px' }}>
-                <span style={{
-                  display: 'inline-flex',
-                  padding: '4px 8px',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  borderRadius: '6px',
-                  backgroundColor: '#f3e8ff',
-                  color: '#6b21a8'
-                }}>
-                  {merchant.activePlan || merchant.planName || 'WWE Pro Plan (₹899)'}
+            <Card key={merchant.id} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span 
+                  onClick={() => navigate(`/admin/users/${merchant.id}`)}
+                  style={{ color: '#035096', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem' }}
+                >
+                  {merchant.storeName || "WWE Arena Supermart"}
                 </span>
-              </td>
-              
-              {/* POS Allocation usage bar */}
-              <td style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '90px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4b5563' }}>
-                    {merchant.terminalsUsed ?? 1} / {merchant.terminalsAllowed ?? 3} Slots
-                  </span>
-                  <div style={{ width: '100%', height: '5px', background: '#e5e7eb', borderRadius: '99px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      width: `${Math.min(100, Math.round(((merchant.terminalsUsed ?? 1) / (merchant.terminalsAllowed ?? 3)) * 100))}%`, 
-                      height: '100%', 
-                      background: (merchant.terminalsUsed ?? 1) >= (merchant.terminalsAllowed ?? 3) ? '#d97706' : '#10b981',
-                      transition: 'width 0.4s ease-out'
-                    }} />
-                  </div>
-                </div>
-              </td>
-
-              <td style={{ padding: '14px 16px', color: '#6b7280' }}>
-                {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "10 Jan 2026"}
-              </td>
-              <td style={{ padding: '14px 16px' }}>
                 <Badge variant={String(merchant.status).toUpperCase() === 'ACTIVE' ? 'success' : 'danger'}>
                   {String(merchant.status).toUpperCase()}
                 </Badge>
-              </td>
-              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                  
-                  <button
-                    onClick={() => handleToggleStatus(merchant.id, merchant.storeName, merchant.status)}
-                    style={{
-                      padding: '6px',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: merchant.status === 'ACTIVE' ? '#10b981' : '#9ca3af',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    title={merchant.status === 'ACTIVE' ? 'Suspend Merchant' : 'Activate Merchant'}
-                  >
-                    {merchant.status === 'ACTIVE' ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-                  </button>
-
-                  <button
-                    onClick={() => triggerEdit(merchant)}
-                    style={{
-                      padding: '6px 10px',
-                      background: '#ffffff',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      color: '#4b5563',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px'
-                    }}
-                  >
-                    <Edit3 size={11} /> Edit
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(merchant.id, merchant.storeName)}
-                    style={{
-                      padding: '6px',
-                      background: '#ffffff',
-                      border: '1px solid #fee2e2',
-                      borderRadius: '6px',
-                      color: '#dc2626',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
+                <div><span style={{ color: 'var(--text-muted)' }}>Owner:</span> <span style={{ fontWeight: 600 }}>{merchant.ownerName || 'Ankit Pathe'}</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>City:</span> <span>{merchant.city || 'Chhindwara'}</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Email:</span> <span>{merchant.email || 'N/A'}</span></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Phone:</span> <span>{merchant.phone || 'N/A'}</span></div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Plan:</span>{' '}
+                  <span style={{ padding: '2px 6px', fontSize: '0.7rem', fontWeight: 700, borderRadius: '4px', backgroundColor: '#e0effe', color: '#035096' }}>
+                    {merchant.activePlan || merchant.planName || 'WWE Pro Plan'}
+                  </span>
                 </div>
-              </td>
-            </tr>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>POS Slots:</span>{' '}
+                  <span style={{ fontWeight: 700 }}>{merchant.terminalsUsed ?? 1} / {merchant.terminalsAllowed ?? 3}</span>
+                </div>
+              </div>
+              <div style={{ borderTop: '1px solid var(--border-muted)', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <Button variant="secondary" onClick={() => navigate(`/admin/users/${merchant.id}`)} style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+                  Profile Details
+                </Button>
+                <Button variant="secondary" onClick={() => triggerEdit(merchant)} style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+                  Edit
+                </Button>
+              </div>
+            </Card>
           ))
         )}
-      </Table>
+      </div>
 
       {/* Edit Merchant Details Modal */}
       {editingMerchant && (
@@ -591,7 +641,7 @@ export default function AllUsersTable() {
               </button>
               <button
                 type="submit"
-                style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #7c3aed, #4f46e5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #035096, #3fa9f5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
               >
                 Save Changes
               </button>

@@ -126,8 +126,8 @@ export default function Select({
           userSelect: 'none',
           boxSizing: 'border-box',
           height: '38px',
-          boxShadow: isOpen ? '0 0 0 2px rgba(124, 58, 237, 0.2)' : 'none',
-          borderColor: isOpen ? '#7c3aed' : 'var(--border-muted)'
+          boxShadow: isOpen ? '0 0 0 2px rgba(3, 80, 150, 0.2)' : 'none',
+          borderColor: isOpen ? '#035096' : 'var(--border-muted)'
         }}
       >
         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -172,7 +172,7 @@ export default function Select({
                     justifyContent: 'space-between',
                     padding: '8px 12px',
                     fontSize: '0.825rem',
-                    color: isSelected ? '#7c3aed' : 'var(--text-primary)',
+                    color: isSelected ? '#035096' : 'var(--text-primary)',
                     background: isSelected ? 'var(--accent-primary-glow)' : isFocused ? 'var(--bg-control-hover)' : 'transparent',
                     fontWeight: isSelected ? 600 : 400,
                     cursor: 'pointer',
@@ -182,7 +182,7 @@ export default function Select({
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {opt.label}
                   </span>
-                  {isSelected && <Check size={14} style={{ color: '#7c3aed' }} />}
+                  {isSelected && <Check size={14} style={{ color: '#035096' }} />}
                 </div>
               );
             })

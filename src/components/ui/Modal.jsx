@@ -30,26 +30,29 @@ export default function Modal({ isOpen, onClose, title, children, width = '450px
         }}
       />
       {/* Modal Container */}
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: `calc(100% - 32px)`,
-        maxWidth: width,
-        background: 'var(--bg-card)',
-        color: 'var(--text-primary)',
-        borderRadius: '16px',
-        border: '1px solid var(--border-muted)',
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-        padding: '24px',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        boxSizing: 'border-box',
-        animation: 'scaleInModal 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-      }}>
+      <div 
+        className="modal-box-container"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: `calc(100% - 32px)`,
+          maxWidth: width,
+          background: 'var(--bg-card)',
+          color: 'var(--text-primary)',
+          borderRadius: '16px',
+          border: '1px solid var(--border-muted)',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+          padding: '24px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          boxSizing: 'border-box',
+          animation: 'scaleInModal 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        }}
+      >
         {title && (
           <div style={{ borderBottom: '1px solid var(--border-muted)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>
@@ -71,6 +74,25 @@ export default function Modal({ isOpen, onClose, title, children, width = '450px
         @keyframes scaleInModal {
           from { transform: translate(-50%, -50%) scale(0.95); opacity: 0; }
           to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @media (max-width: 639px) {
+          .modal-box-container {
+            top: auto !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            transform: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 20px 20px 0 0 !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+            animation: slideUpModal 0.25s cubic-bezier(0.32, 0.94, 0.6, 1) !important;
+          }
+        }
+        @keyframes slideUpModal {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
         }
       `}</style>
     </>

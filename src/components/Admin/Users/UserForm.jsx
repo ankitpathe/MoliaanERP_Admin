@@ -93,7 +93,7 @@ export default function UserForm({ user, onSave, onCancel }) {
           Personal Information
         </h4>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-form-row">
+        <div className="responsive-two-cols" className="responsive-form-row">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Full Name *</label>
             <input
@@ -164,7 +164,7 @@ export default function UserForm({ user, onSave, onCancel }) {
           Account Information
         </h4>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-form-row">
+        <div className="responsive-two-cols" className="responsive-form-row">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4b5563' }}>Role *</label>
             <Select
@@ -199,7 +199,7 @@ export default function UserForm({ user, onSave, onCancel }) {
             Authentication
           </h4>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-form-row">
+          <div className="responsive-two-cols" className="responsive-form-row">
             
             {/* Password */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

@@ -46,7 +46,7 @@ export default function GSTSummary({ sales }) {
           No tax data available yet
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div className="responsive-two-cols">
           <div style={{ background: '#fafafa', padding: '14px', borderRadius: '12px', border: '1px solid #f3f4f6' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Taxable Sales Volume</span>
             <strong style={{ fontSize: '1.25rem', color: '#111827', display: 'block', marginTop: '6px' }}>

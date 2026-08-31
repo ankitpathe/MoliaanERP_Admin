@@ -39,7 +39,7 @@ export default function Button({ children, variant = 'primary', style = {}, ...p
     if (variant === 'purple') {
       return {
         ...base,
-        background: 'linear-gradient(to right, #7c3aed, #4f46e5)',
+        background: 'linear-gradient(to right, #035096, #3FA9F5)',
         color: '#ffffff',
         border: 'none',
         ...style

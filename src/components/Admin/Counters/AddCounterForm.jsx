@@ -226,13 +226,13 @@ export default function AddCounterForm() {
         {/* Section 1: Counter Details */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Monitor size={18} style={{ color: '#7c3aed' }} />
+            <Monitor size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Section 1 - Counter Details
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+          <div className="responsive-form-grid">
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Counter Name *</span>
@@ -303,13 +303,13 @@ export default function AddCounterForm() {
         {/* Section 4: Personal Information */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <User size={18} style={{ color: '#7c3aed' }} />
+            <User size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               PERSONAL INFORMATION
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+          <div className="responsive-form-grid">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Full Name *</span>
               <input 
@@ -396,13 +396,13 @@ export default function AddCounterForm() {
         {/* Section 5: Security Settings */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <KeyRound size={18} style={{ color: '#7c3aed' }} />
+            <KeyRound size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               SECURITY SETTINGS
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+          <div className="responsive-form-grid">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Username / Login ID *</span>
               <input 
@@ -532,14 +532,14 @@ export default function AddCounterForm() {
             type="submit"
             style={{
               padding: '10px 20px',
-              background: 'linear-gradient(to right, #7c3aed, #4f46e5)',
+              background: 'linear-gradient(to right, #035096, #3fa9f5)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.85rem',
               fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
+              boxShadow: '0 4px 6px -1px rgba(63, 169, 245, 0.2)'
             }}
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}

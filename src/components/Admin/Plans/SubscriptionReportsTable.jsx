@@ -356,9 +356,9 @@ export default function SubscriptionReportsTable() {
       />
 
       {/* KPI Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
-        <StatCard label="Monthly Recurring Revenue" value={`₹${mrr.toLocaleString('en-IN')}`} icon={CreditCard} color="#4f46e5" />
+        <StatCard label="Monthly Recurring Revenue" value={`₹${mrr.toLocaleString('en-IN')}`} icon={CreditCard} color="#3fa9f5" />
         <StatCard label="Annual Projected Value" value={`₹${arr.toLocaleString('en-IN')}`} icon={CheckCircle} color="#10b981" />
         <StatCard label="Total Active Licenses" value={`${activeCount} Active`} icon={Settings} color="#0891b2" />
         
@@ -442,7 +442,7 @@ export default function SubscriptionReportsTable() {
                 </td>
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600, color: '#4f46e5' }}>{sub.planName}</span>
+                    <span style={{ fontWeight: 600, color: '#3fa9f5' }}>{sub.planName}</span>
                     <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>
                       {sub.billingCycle}
                     </span>

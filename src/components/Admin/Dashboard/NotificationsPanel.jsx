@@ -71,7 +71,7 @@ export default function NotificationsPanel({ lowStockCount }) {
             {alert.type === 'warning' ? (
               <AlertTriangle size={16} style={{ color: '#d97706', marginTop: '2px' }} />
             ) : (
-              <Info size={16} style={{ color: '#4f46e5', marginTop: '2px' }} />
+              <Info size={16} style={{ color: '#3fa9f5', marginTop: '2px' }} />
             )}
             <div>
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: alert.type === 'warning' ? '#92400e' : '#374151', display: 'block' }}>

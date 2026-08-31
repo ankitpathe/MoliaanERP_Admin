@@ -279,9 +279,9 @@ export default function StocksReport() {
       />
 
       {/* KPI Metrics Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
-        <StatCard label="Total Stock Valuation" value={`₹${totalCostValuation.toLocaleString('en-IN')}`} icon={Layers} color="#4f46e5" />
+        <StatCard label="Total Stock Valuation" value={`₹${totalCostValuation.toLocaleString('en-IN')}`} icon={Layers} color="#3fa9f5" />
         <StatCard label="Total Unique SKUs" value={uniqueSKUs} icon={BarChart2} color="#0891b2" />
         <StatCard label="Low Stock Items" value={lowStockCount} icon={AlertTriangle} color="#d97706" />
         <StatCard label="Out of Stock" value={outOfStockCount} icon={ShieldAlert} color="#ef4444" />
@@ -526,7 +526,7 @@ export default function StocksReport() {
                 </button>
                 <button 
                   type="submit" 
-                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #7c3aed, #4f46e5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #035096, #3fa9f5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Save Adjustment
                 </button>

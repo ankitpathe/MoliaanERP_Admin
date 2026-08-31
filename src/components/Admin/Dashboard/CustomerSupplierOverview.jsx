@@ -6,7 +6,7 @@ export default function CustomerSupplierOverview({ customersCount, suppliersCoun
   const navigate = useNavigate();
 
   const sections = [
-    { label: 'Customers', count: customersCount, icon: Users, path: '/customers/ledger', color: '#4f46e5' },
+    { label: 'Customers', count: customersCount, icon: Users, path: '/customers/ledger', color: '#3fa9f5' },
     { label: 'Suppliers', count: suppliersCount, icon: Truck, path: '/suppliers/ledger', color: '#0891b2' }
   ];
 
@@ -22,7 +22,7 @@ export default function CustomerSupplierOverview({ customersCount, suppliersCoun
     }}>
       <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#111827', margin: 0 }}>Business Contacts Summary</h3>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div className="responsive-two-cols">
         {sections.map((sec, idx) => {
           const Icon = sec.icon;
           return (

@@ -245,7 +245,7 @@ export default function SubscriptionRequestsTable() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', boxSizing: 'border-box' }}>
       
       {/* Top KPI Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -371,7 +371,7 @@ export default function SubscriptionRequestsTable() {
               </td>
               <td style={{ padding: '14px 16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#4f46e5' }}>{req.planName}</span>
+                  <span style={{ fontWeight: 600, color: '#3fa9f5' }}>{req.planName}</span>
                   <span style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>
                     {req.billingCycle}
                   </span>
@@ -390,7 +390,7 @@ export default function SubscriptionRequestsTable() {
                     {req.paymentProofUrl && (
                       <button
                         onClick={() => setActiveProof(req)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'transparent', border: 'none', color: '#7c3aed', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 700, padding: 0, textAlign: 'left', marginTop: '2px' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'transparent', border: 'none', color: '#035096', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 700, padding: 0, textAlign: 'left', marginTop: '2px' }}
                       >
                         <Eye size={12} /> View Slip
                       </button>

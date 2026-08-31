@@ -337,8 +337,8 @@ export default function InvoicesReport() {
       />
 
       {/* KPI Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <StatCard label="Total Processed Volume" value={`₹${totalVolume.toLocaleString('en-IN')}`} icon={Receipt} color="#4f46e5" />
+      <div className="responsive-grid-4">
+        <StatCard label="Total Processed Volume" value={`₹${totalVolume.toLocaleString('en-IN')}`} icon={Receipt} color="#3fa9f5" />
         <StatCard label="Paid Invoices" value={paidInvoicesCount} icon={Layers} color="#10b981" />
         <StatCard label="Outstanding Khata" value={`₹${outstandingKhata.toLocaleString('en-IN')}`} icon={CreditCard} color="#0891b2" />
         <StatCard label="Total GST Collected" value={`₹${totalGST.toLocaleString('en-IN')}`} icon={Receipt} color="#dc2626" />
@@ -407,7 +407,7 @@ export default function InvoicesReport() {
                   }}
                 >
                   <td style={{ padding: '14px 16px', width: '20px', cursor: 'pointer' }} onClick={() => toggleRow(inv.id)}>
-                    {isExpanded ? <ChevronUp size={14} style={{ color: '#7c3aed' }} /> : <ChevronDown size={14} />}
+                    {isExpanded ? <ChevronUp size={14} style={{ color: '#035096' }} /> : <ChevronDown size={14} />}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>

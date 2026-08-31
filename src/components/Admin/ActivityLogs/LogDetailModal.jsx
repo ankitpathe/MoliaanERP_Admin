@@ -41,7 +41,7 @@ export default function LogDetailModal({ log, onClose }) {
       </div>
 
       {/* Meta Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="responsive-grid">
+      <div className="responsive-two-cols" className="responsive-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.8rem' }}>
           <span style={{ color: '#9ca3af', fontWeight: 600 }}>USER NAME / ROLE</span>
           <span style={{ color: '#111827', fontWeight: 700 }}>{log.userName} ({log.userRole})</span>

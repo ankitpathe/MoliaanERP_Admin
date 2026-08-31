@@ -188,7 +188,7 @@ export default function AddPlanForm() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '24px', boxSizing: 'border-box' }}>
+    <div className="responsive-asym-cols">
       
       {/* Left Column: Input Form with sections */}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -196,13 +196,13 @@ export default function AddPlanForm() {
         {/* Section A: Basic Plan Details */}
         <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Layers size={18} style={{ color: '#7c3aed' }} />
+            <Layers size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Section A: Basic Plan Details
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="responsive-two-cols">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Plan Name *</span>
               <input
@@ -226,7 +226,7 @@ export default function AddPlanForm() {
                       borderRadius: '12px',
                       border: '1px solid #ddd6fe',
                       background: '#f5f3ff',
-                      color: '#7c3aed',
+                      color: '#035096',
                       cursor: 'pointer',
                       transition: 'all 0.15s'
                     }}
@@ -284,7 +284,7 @@ export default function AddPlanForm() {
         {/* Section B: Pricing & Billing Tiers */}
         <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <CreditCard size={18} style={{ color: '#7c3aed' }} />
+            <CreditCard size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Section B: Pricing & Billing Tiers
             </span>
@@ -306,9 +306,9 @@ export default function AddPlanForm() {
                     style={{
                       padding: '8px 14px',
                       borderRadius: '30px',
-                      border: isSelected ? '2px solid #7c3aed' : '1px solid #d1d5db',
+                      border: isSelected ? '2px solid #035096' : '1px solid #d1d5db',
                       background: isSelected ? '#f5f3ff' : '#ffffff',
-                      color: isSelected ? '#7c3aed' : '#374151',
+                      color: isSelected ? '#035096' : '#374151',
                       fontSize: '0.775rem',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -328,7 +328,7 @@ export default function AddPlanForm() {
           </div>
 
           {/* Active Tab Price Input with Auto-discount calculation badge */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px', alignItems: 'flex-end' }}>
+          <div className="responsive-asym-cols">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
                 Price for {durationLabels[activeTab]} (₹) *
@@ -382,13 +382,13 @@ export default function AddPlanForm() {
         {/* Section C: Quota & Terminal Limits */}
         <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Landmark size={18} style={{ color: '#7c3aed' }} />
+            <Landmark size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Section C: Quota & Terminal Limits
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="responsive-two-cols">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
                 POS Terminals / Counters Limit
@@ -463,13 +463,13 @@ export default function AddPlanForm() {
         {/* Section D: Feature Checklist */}
         <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <ShieldCheck size={18} style={{ color: '#7c3aed' }} />
+            <ShieldCheck size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Section D: Feature Checklist
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="responsive-two-cols">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#374151', cursor: 'pointer', padding: '8px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
               <input type="checkbox" checked={features.sync} onChange={() => handleToggleFeature('sync')} />
               Multi-Counter Realtime Data Sync
@@ -521,12 +521,12 @@ export default function AddPlanForm() {
               padding: '10px 24px',
               borderRadius: '8px',
               border: 'none',
-              background: 'linear-gradient(to right, #7c3aed, #4f46e5)',
+              background: 'linear-gradient(to right, #035096, #3fa9f5)',
               color: '#ffffff',
               fontSize: '0.85rem',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.25)'
+              boxShadow: '0 4px 6px -1px rgba(3, 80, 150, 0.25)'
             }}
           >
             Save & Publish Plan
@@ -554,7 +554,7 @@ export default function AddPlanForm() {
               position: 'absolute',
               top: '20px',
               right: '20px',
-              background: '#7c3aed',
+              background: '#035096',
               color: '#ffffff',
               fontSize: '0.65rem',
               fontWeight: 800,
@@ -614,7 +614,7 @@ export default function AddPlanForm() {
                     borderRadius: '4px',
                     cursor: 'pointer',
                     background: isActive ? '#f5f3ff' : 'transparent',
-                    color: isActive ? '#7c3aed' : '#9ca3af',
+                    color: isActive ? '#035096' : '#9ca3af',
                     opacity: hasPrice ? 1 : 0.4
                   }}
                 >
@@ -635,7 +635,7 @@ export default function AddPlanForm() {
             gap: '4px' 
           }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '2rem', fontWeight: 900, color: '#7c3aed' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 900, color: '#035096' }}>
                 ₹{pricingTiers[activeTab] ? parseFloat(pricingTiers[activeTab]).toLocaleString('en-IN') : '0'}
               </span>
               <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 700 }}>
@@ -665,7 +665,7 @@ export default function AddPlanForm() {
               Tier Quota Quotas
             </span>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="responsive-two-cols">
               <div style={{ background: '#f3f4f6', padding: '8px 12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600 }}>Terminals Limit</span>
                 <span style={{ fontSize: '0.85rem', color: '#111827', fontWeight: 700 }}>

@@ -545,8 +545,8 @@ export default function AdsManagement() {
       />
 
       {/* KPI Stats Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <StatCard label="Active Campaigns" value={activeCampaignsCount} icon={Sparkles} color="#7c3aed" />
+      <div className="responsive-grid-4">
+        <StatCard label="Active Campaigns" value={activeCampaignsCount} icon={Sparkles} color="#035096" />
         <StatCard label="Total Impressions" value={totalImpressions.toLocaleString()} icon={Megaphone} color="#06b6d4" />
         <StatCard label="Total Clicks" value={totalClicks.toLocaleString()} icon={ExternalLink} color="#10b981" />
         <StatCard label="Avg. Click-Through Rate" value={`${avgCTR}%`} icon={Activity} color="#ef4444" />
@@ -646,13 +646,80 @@ export default function AdsManagement() {
 
       {/* Table view */}
       <Card style={{ padding: '16px' }}>
-        <Table headers={tableHeaders}>
+        <div className="desktop-view">
+          <Table headers={tableHeaders}>
+            {filteredAds.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+                  No ads matching filters.
+                </td>
+              </tr>
+            ) : (
+              filteredAds.map(ad => {
+                const compStatus = getAdStatus(ad);
+                const badgeVariant = 
+                  compStatus === 'LIVE_NOW' ? 'success' :
+                  compStatus === 'PAUSED' ? 'warning' :
+                  compStatus === 'EXPIRED' ? 'danger' :
+                  compStatus === 'SCHEDULED' ? 'info' : 'secondary';
+                
+                const badgeLabel = 
+                  compStatus === 'LIVE_NOW' ? 'Active' :
+                  compStatus === 'PAUSED' ? 'Paused' :
+                  compStatus === 'EXPIRED' ? 'Expired' :
+                  compStatus === 'SCHEDULED' ? 'Scheduled' : 'Inactive';
+
+                return (
+                  <tr key={ad.id} style={{ borderBottom: '1px solid var(--border-muted)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-control)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {ad.imageUrl || ad.imageId ? (
+                            <AdImage ad={ad} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Megaphone size={14} style={{ color: 'var(--text-muted)' }} />
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <strong style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</strong>
+                          <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>{ad.advertiser}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <Badge variant={ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'info' : 'secondary'}>
+                        {ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'Footer' : 'Sidebar'}
+                      </Badge>
+                    </td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600 }}>{ad.rotationSpeed || 8}s</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <Badge variant={badgeVariant}>{badgeLabel}</Badge>
+                    </td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <Button variant="secondary" onClick={() => handleEditClick(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                          Edit
+                        </Button>
+                        <Button variant="secondary" onClick={() => handleToggleStatus(ad.id, ad.status)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                          {ad.status === 'ACTIVE' ? 'Pause' : 'Activate'}
+                        </Button>
+                        <Button variant="secondary" onClick={() => handleDelete(ad.id, ad.title)} style={{ padding: '4px 8px', fontSize: '0.7rem', color: '#ef4444' }}>
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </Table>
+        </div>
+
+        <div className="mobile-view">
           {filteredAds.length === 0 ? (
-            <tr>
-              <td colSpan={5} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
-                No ads matching filters.
-              </td>
-            </tr>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+              No ads matching filters.
+            </div>
           ) : (
             filteredAds.map(ad => {
               const compStatus = getAdStatus(ad);
@@ -669,49 +736,47 @@ export default function AdsManagement() {
                 compStatus === 'SCHEDULED' ? 'Scheduled' : 'Inactive';
 
               return (
-                <tr key={ad.id} style={{ borderBottom: '1px solid var(--border-muted)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-control)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {ad.imageUrl || ad.imageId ? (
-                          <AdImage ad={ad} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <Megaphone size={14} style={{ color: 'var(--text-muted)' }} />
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <strong style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</strong>
-                        <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>{ad.advertiser}</span>
-                      </div>
+                <div key={ad.id} style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--bg-control)', border: '1px solid var(--border-muted)', borderRadius: '12px', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {ad.imageUrl || ad.imageId ? (
+                        <AdImage ad={ad} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <Megaphone size={14} style={{ color: 'var(--text-muted)' }} />
+                      )}
                     </div>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <Badge variant={ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'info' : 'secondary'}>
-                      {ad.placement === 'Footer' || ad.placement.includes('Leaderboard') ? 'Footer' : 'Sidebar'}
-                    </Badge>
-                  </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{ad.rotationSpeed || 8}s</td>
-                  <td style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{ad.title}</strong>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{ad.advertiser}</span>
+                    </div>
                     <Badge variant={badgeVariant}>{badgeLabel}</Badge>
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                      <Button variant="secondary" onClick={() => handleEditClick(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
-                        Edit
-                      </Button>
-                      <Button variant="secondary" onClick={() => handleToggleStatus(ad.id, ad.status)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
-                        {ad.status === 'ACTIVE' ? 'Pause' : 'Activate'}
-                      </Button>
-                      <Button variant="secondary" onClick={() => handleDelete(ad.id, ad.title)} style={{ padding: '4px 8px', fontSize: '0.7rem', color: '#ef4444' }}>
-                        Delete
-                      </Button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', borderTop: '1px solid var(--border-muted)', paddingTop: '8px' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>Placement:</span>{' '}
+                      <span style={{ fontWeight: 600 }}>{ad.placement}</span>
                     </div>
-                  </td>
-                </tr>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>Rotation:</span>{' '}
+                      <span style={{ fontWeight: 600 }}>{ad.rotationSpeed || 8}s</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-muted)', paddingTop: '8px' }}>
+                    <Button variant="secondary" onClick={() => handleEditClick(ad)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                      Edit
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleToggleStatus(ad.id, ad.status)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
+                      {ad.status === 'ACTIVE' ? 'Pause' : 'Activate'}
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleDelete(ad.id, ad.title)} style={{ padding: '4px 8px', fontSize: '0.7rem', color: '#ef4444' }}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
               );
             })
           )}
-        </Table>
+        </div>
       </Card>
 
       {/* Advertiser Directory Section */}
@@ -920,7 +985,7 @@ export default function AdsManagement() {
 
             {showScheduleSettings && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', border: '1px solid var(--border-muted)', borderRadius: '8px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="responsive-two-cols">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Start Date</span>
                     <Input 
@@ -950,7 +1015,7 @@ export default function AdsManagement() {
                 </div>
 
                 {restrictHours && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="responsive-two-cols">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Start Time</span>
                       <input 
@@ -1113,7 +1178,7 @@ export default function AdsManagement() {
                 <strong style={{ fontSize: '0.9rem', color: '#1f2937' }}>{inspectingAd.title}</strong>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="responsive-two-cols">
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Advertiser</span>
                   <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{inspectingAd.advertiser}</div>
@@ -1136,7 +1201,7 @@ export default function AdsManagement() {
                 </div>
                 <div>
                   <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>CTR</span>
-                  <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#7c3aed' }}>{adCTR}%</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#035096' }}>{adCTR}%</div>
                 </div>
                 <div>
                   <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>Revenue</span>
@@ -1151,7 +1216,7 @@ export default function AdsManagement() {
                   <svg width={width} height={height}>
                     <polyline
                       fill="none"
-                      stroke="#7c3aed"
+                      stroke="#035096"
                       strokeWidth="2.5"
                       points={points}
                     />
@@ -1159,7 +1224,7 @@ export default function AdsManagement() {
                       const x = (idx / 6) * (width - 20) + 10;
                       const y = height - (val / maxVal) * (height - 20) - 10;
                       return (
-                        <circle key={idx} cx={x} cy={y} r="4" fill="#4f46e5" />
+                        <circle key={idx} cx={x} cy={y} r="4" fill="#3fa9f5" />
                       );
                     })}
                   </svg>
@@ -1188,7 +1253,7 @@ export default function AdsManagement() {
                 <button 
                   type="button" 
                   onClick={() => setInspectingAd(null)}
-                  style={{ flex: 1, padding: '10px', background: '#7c3aed', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '10px', background: '#035096', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Dismiss Detail View
                 </button>
@@ -1256,7 +1321,7 @@ export default function AdsManagement() {
                         fontWeight: 700,
                         border: 'none',
                         background: previewDevice === dev.key ? '#ffffff' : 'transparent',
-                        color: previewDevice === dev.key ? '#4f46e5' : '#64748b',
+                        color: previewDevice === dev.key ? '#3fa9f5' : '#64748b',
                         borderRadius: '6px',
                         boxShadow: previewDevice === dev.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         cursor: 'pointer',
@@ -1408,7 +1473,7 @@ export default function AdsManagement() {
                   rel="noopener noreferrer" 
                   style={{ 
                     padding: '6px 12px', 
-                    background: '#7c3aed', 
+                    background: '#035096', 
                     color: '#ffffff', 
                     borderRadius: '8px', 
                     textDecoration: 'none', 

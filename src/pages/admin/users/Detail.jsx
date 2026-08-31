@@ -438,7 +438,7 @@ export default function UserDetail() {
               <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>General merchant registry details, store parameters, and contacts.</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-two-cols">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>Full Name</span>
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1f2937' }}>{user.ownerName}</span>
@@ -488,7 +488,7 @@ export default function UserDetail() {
               </Badge>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-two-cols">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>Billing Frequency</span>
                 <Badge variant="purple" style={{ alignSelf: 'flex-start' }}>Monthly</Badge>
@@ -623,7 +623,7 @@ export default function UserDetail() {
                     <td style={{ padding: '10px 12px' }}>
                       <span 
                         onClick={() => navigate(`/admin/counters/${ctr.id}`)}
-                        style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: 700 }}
+                        style={{ color: '#035096', cursor: 'pointer', fontWeight: 700 }}
                         onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
                         onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
                       >
@@ -652,7 +652,7 @@ export default function UserDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {activities.map((act, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '0.75rem' }}>
-                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />
+                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#035096', flexShrink: 0 }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     <span style={{ fontWeight: 600, color: '#374151' }}>{act.text}</span>
                     <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>{act.time}</span>
@@ -943,9 +943,9 @@ export default function UserDetail() {
                               flex: 1,
                               padding: '8px',
                               borderRadius: '8px',
-                              border: billingFrequency === 'MONTHLY' ? '2px solid #7c3aed' : '1px solid #d1d5db',
+                              border: billingFrequency === 'MONTHLY' ? '2px solid #035096' : '1px solid #d1d5db',
                               background: billingFrequency === 'MONTHLY' ? '#f5f3ff' : '#ffffff',
-                              color: billingFrequency === 'MONTHLY' ? '#7c3aed' : '#4b5563',
+                              color: billingFrequency === 'MONTHLY' ? '#035096' : '#4b5563',
                               fontWeight: 600,
                               fontSize: '0.8rem',
                               cursor: 'pointer'
@@ -960,9 +960,9 @@ export default function UserDetail() {
                               flex: 1,
                               padding: '8px',
                               borderRadius: '8px',
-                              border: billingFrequency === 'YEARLY' ? '2px solid #7c3aed' : '1px solid #d1d5db',
+                              border: billingFrequency === 'YEARLY' ? '2px solid #035096' : '1px solid #d1d5db',
                               background: billingFrequency === 'YEARLY' ? '#f5f3ff' : '#ffffff',
-                              color: billingFrequency === 'YEARLY' ? '#7c3aed' : '#4b5563',
+                              color: billingFrequency === 'YEARLY' ? '#035096' : '#4b5563',
                               fontWeight: 600,
                               fontSize: '0.8rem',
                               cursor: 'pointer'
@@ -977,7 +977,7 @@ export default function UserDetail() {
 
                   {selectedPlanObj && (
                     <div style={{ background: '#f5f3ff', padding: '12px', borderRadius: '8px', border: '1px solid #ddd6fe', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <span style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 700, textTransform: 'uppercase' }}>New Plan Live Preview</span>
+                      <span style={{ fontSize: '0.7rem', color: '#035096', fontWeight: 700, textTransform: 'uppercase' }}>New Plan Live Preview</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                         <span>New Plan Price:</span>
                         <strong>₹{newPlanPrice} / {pricingCycleText}</strong>

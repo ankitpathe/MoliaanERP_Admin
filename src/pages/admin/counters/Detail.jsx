@@ -350,7 +350,7 @@ export default function CounterDetail() {
               <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Physical location details, node metadata registry, and assigned cashier.</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-two-cols">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>Counter Name</span>
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1f2937' }}>{counter.name || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Not assigned</span>}</span>
@@ -398,10 +398,10 @@ export default function CounterDetail() {
               <Badge variant={statusBadgeVariant}>{statusBadgeText}</Badge>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-two-cols">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>Plan Name</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#7c3aed' }}>{counter.planName}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#035096' }}>{counter.planName}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>Plan Price</span>
@@ -484,7 +484,7 @@ export default function CounterDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {activities.map((act, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '0.75rem' }}>
-                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />
+                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#035096', flexShrink: 0 }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     <span style={{ fontWeight: 600, color: '#374151' }}>{act.text}</span>
                     <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>{act.time}</span>
@@ -524,8 +524,8 @@ export default function CounterDetail() {
         <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Terminal Usage & Sales statistics
         </span>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          <StatCard label="Shift Sales Today" value={`₹${(counter.grossSalesToday || 0).toLocaleString('en-IN')}`} icon={Activity} color="#4f46e5" />
+        <div className="responsive-grid-4">
+          <StatCard label="Shift Sales Today" value={`₹${(counter.grossSalesToday || 0).toLocaleString('en-IN')}`} icon={Activity} color="#3fa9f5" />
           <StatCard label="Transactions Today" value={counter.totalBillsToday || 0} icon={Monitor} color="#10b981" />
           <StatCard label="All-Time Bills" value={counter.totalBillsAllTime} icon={Clock} color="#0891b2" />
           <StatCard label="Avg Daily Sales (7d)" value={`₹${counter.avgDailySales.toLocaleString('en-IN')}`} icon={Activity} color="#f59e0b" />

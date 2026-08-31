@@ -175,18 +175,20 @@ export default function AdminLayout({ sidebar, header, children }) {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.15)',
-              backdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(15, 23, 42, 0.5)',
+              backdropFilter: 'blur(4px)',
               zIndex: 998
             }}
           />
           <div 
             style={{
               position: 'fixed',
-              top: '16px',
-              left: '16px',
-              bottom: '16px',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: '280px',
               zIndex: 999,
+              boxShadow: '4px 0 25px rgba(0,0,0,0.15)',
               animation: 'slide-in 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
           >
@@ -220,11 +222,10 @@ export default function AdminLayout({ sidebar, header, children }) {
         }}>
           
           {/* Scrollable Page Children Area */}
-          <main style={{ 
+          <main className="admin-main-content" style={{ 
             flex: 1, 
             display: 'flex', 
             flexDirection: 'column',
-            padding: '24px',
             overflowY: 'auto',
             minWidth: 0
           }}>
@@ -340,8 +341,8 @@ export default function AdminLayout({ sidebar, header, children }) {
                       style={{
                         marginTop: '12px',
                         padding: '8px 16px',
-                        border: '1px solid #7c3aed',
-                        color: '#7c3aed',
+                        border: '1px solid #035096',
+                        color: '#035096',
                         background: 'transparent',
                         borderRadius: '8px',
                         fontSize: '0.75rem',
@@ -361,11 +362,10 @@ export default function AdminLayout({ sidebar, header, children }) {
 
         {/* Global Bottom Horizontal Ad Stripe (Full width of middle pane) */}
         {isDashboard && (
-          <div style={{
+          <div className="admin-footer-ad-stripe" style={{
             width: '100%',
             borderTop: '1px solid #e5e7eb',
             background: '#ffffff',
-            padding: '12px 24px',
             boxSizing: 'border-box',
             flexShrink: 0
           }}>
@@ -425,6 +425,12 @@ export default function AdminLayout({ sidebar, header, children }) {
 
       {/* Responsive adjustments & animations */}
       <style>{`
+        .admin-main-content {
+          padding: 24px;
+        }
+        .admin-footer-ad-stripe {
+          padding: 12px 24px;
+        }
         .desktop-sidebar-container {
           display: block;
           flex-shrink: 0;
@@ -442,15 +448,31 @@ export default function AdminLayout({ sidebar, header, children }) {
           .desktop-sidebar-container {
             display: none !important;
           }
+          .mobile-burger-btn {
+            display: flex !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .mobile-burger-btn {
+            display: none !important;
+          }
         }
         @media (max-width: 1200px) {
           .desktop-ad-sidebar {
             display: none !important;
           }
         }
+        @media (max-width: 640px) {
+          .admin-main-content {
+            padding: 16px;
+          }
+          .admin-footer-ad-stripe {
+            padding: 12px 16px;
+          }
+        }
         @keyframes slide-in {
-          from { transform: translateX(-100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
         }
       `}</style>
     </div>

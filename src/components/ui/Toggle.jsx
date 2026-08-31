@@ -10,7 +10,7 @@ export default function Toggle({ checked, onChange, disabled }) {
         width: '40px',
         height: '22px',
         borderRadius: '99px',
-        background: checked ? '#7c3aed' : '#d1d5db',
+        background: checked ? '#035096' : '#d1d5db',
         position: 'relative',
         border: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',

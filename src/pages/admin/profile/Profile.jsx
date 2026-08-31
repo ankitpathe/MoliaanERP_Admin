@@ -339,7 +339,7 @@ export default function Profile() {
             </div>
 
             <form onSubmit={handleSaveInfo} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }} className="form-cols">
+              <div className="responsive-two-cols" className="form-cols">
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Full Name</span>
@@ -408,7 +408,7 @@ export default function Profile() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {activities.map((act, index) => (
                 <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '0.75rem' }}>
-                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />
+                  <div style={{ marginTop: '2px', width: '6px', height: '6px', borderRadius: '50%', background: '#035096', flexShrink: 0 }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     <span style={{ fontWeight: 600, color: '#374151' }}>{act.text}</span>
                     <span style={{ fontSize: '0.675rem', color: '#9ca3af' }}>{act.time}</span>

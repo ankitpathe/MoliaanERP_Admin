@@ -8,14 +8,14 @@ export default function UserStats({ users }) {
   const admins = users.filter(u => u.role === 'Administrator').length;
 
   const cards = [
-    { label: 'Total Users', value: total, icon: Users, color: '#4f46e5' },
+    { label: 'Total Users', value: total, icon: Users, color: '#3fa9f5' },
     { label: 'Active Users', value: active, icon: UserCheck, color: '#10b981' },
     { label: 'Inactive Users', value: inactive, icon: UserX, color: '#dc2626' },
     { label: 'Administrators', value: admins, icon: ShieldAlert, color: '#0891b2' }
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+    <div className="responsive-grid-4">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (

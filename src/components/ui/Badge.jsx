@@ -15,6 +15,16 @@ export default function Badge({ children, variant = 'info', style = {}, ...props
 
     const variantNormalized = String(variant).toLowerCase();
 
+    if (variantNormalized === 'purple' || variantNormalized === 'primary' || variantNormalized === 'brand') {
+      return {
+        ...base,
+        background: isDark ? 'rgba(3, 80, 150, 0.15)' : '#e0effe',
+        color: isDark ? '#3fa9f5' : '#035096',
+        border: isDark ? '1px solid rgba(3, 80, 150, 0.25)' : 'none',
+        ...style
+      };
+    }
+
     if (variantNormalized === 'active' || variantNormalized === 'success' || variantNormalized === 'resolved') {
       return {
         ...base,

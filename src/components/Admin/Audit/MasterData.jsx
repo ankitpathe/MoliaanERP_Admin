@@ -367,9 +367,9 @@ export default function MasterData() {
       />
 
       {/* Top Metrics Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         <StatCard label="Active Categories" value={`${activeCats} Categories`} icon={Tag} color="#10b981" />
-        <StatCard label="Tax Slabs (GST Matrix)" value={`${configuredTaxes} Slabs`} icon={ShieldCheck} color="#4f46e5" />
+        <StatCard label="Tax Slabs (GST Matrix)" value={`${configuredTaxes} Slabs`} icon={ShieldCheck} color="#3fa9f5" />
         <StatCard label="Units of Measure (UOM)" value={`${activeUoms} Units`} icon={Ruler} color="#0891b2" />
         <StatCard label="Active Payment Rails" value={`${activePayments} Modes`} icon={CreditCard} color="#f59e0b" />
       </div>
@@ -393,7 +393,7 @@ export default function MasterData() {
               borderRadius: '8px',
               border: 'none',
               cursor: 'pointer',
-              background: activeTab === tab.id ? 'linear-gradient(to right, #7c3aed, #4f46e5)' : 'transparent',
+              background: activeTab === tab.id ? 'linear-gradient(to right, #035096, #3fa9f5)' : 'transparent',
               color: activeTab === tab.id ? '#ffffff' : '#4b5563',
               transition: 'all 0.2s'
             }}
@@ -416,7 +416,7 @@ export default function MasterData() {
                 <td style={{ padding: '12px 16px', fontFamily: 'monospace' }}>{c.hsnPrefix}</td>
                 <td style={{ padding: '12px 16px', fontWeight: 700 }}>{c.itemsCount || 0} products</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px', borderLeft: `4px solid ${c.color === 'emerald' ? '#10b981' : c.color === 'blue' ? '#3b82f6' : c.color === 'amber' ? '#f59e0b' : '#7c3aed'}`, fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px', borderLeft: `4px solid ${c.color === 'emerald' ? '#10b981' : c.color === 'blue' ? '#3b82f6' : c.color === 'amber' ? '#f59e0b' : '#035096'}`, fontWeight: 700 }}>
                     {c.color}
                   </span>
                 </td>
@@ -688,7 +688,7 @@ export default function MasterData() {
               </button>
               <button
                 type="submit"
-                style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #7c3aed, #4f46e5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: 'linear-gradient(to right, #035096, #3fa9f5)', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
               >
                 Save Baseline Record
               </button>

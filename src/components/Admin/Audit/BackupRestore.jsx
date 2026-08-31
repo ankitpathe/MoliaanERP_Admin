@@ -331,8 +331,8 @@ export default function BackupRestore() {
       />
 
       {/* KPI Telemetry Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        <StatCard label="Last Successful Backup" value={history.length > 0 ? "Yesterday" : "Never"} icon={Calendar} color="#4f46e5" />
+      <div className="responsive-grid-4">
+        <StatCard label="Last Successful Backup" value={history.length > 0 ? "Yesterday" : "Never"} icon={Calendar} color="#3fa9f5" />
         <StatCard label="Active Local Records" value={`${totalRecords} Records`} icon={Layers} color="#10b981" />
         <StatCard label="Database Footprint" value={dbSize} icon={Database} color="#0891b2" />
         

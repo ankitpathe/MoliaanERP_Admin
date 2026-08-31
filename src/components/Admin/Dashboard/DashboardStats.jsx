@@ -15,7 +15,7 @@ export default function DashboardStats({ data }) {
   const navigate = useNavigate();
 
   const statCards = [
-    { label: 'Total Users', value: data.totalUsers, desc: 'Registered system users', icon: Users, color: '#4f46e5', path: '/admin/users' },
+    { label: 'Total Users', value: data.totalUsers, desc: 'Registered system users', icon: Users, color: '#3fa9f5', path: '/admin/users' },
     { label: 'Active Users', value: data.activeUsers, desc: 'Users active in session', icon: UserCheck, color: '#10b981', path: '/admin/users' },
     { label: 'Employees', value: data.totalEmployees, desc: 'Staff count in registry', icon: Briefcase, color: '#0891b2', path: '/employees/list' },
     { label: 'Total Customers', value: data.totalCustomers, desc: 'Active client accounts', icon: CreditCard, color: '#d97706', path: '/customers/ledger' },
@@ -26,7 +26,7 @@ export default function DashboardStats({ data }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+    <div className="responsive-form-grid">
       {statCards.map((card, idx) => {
         const Icon = card.icon;
         return (

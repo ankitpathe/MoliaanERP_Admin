@@ -185,14 +185,14 @@ export default function AllPlansGrid() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', boxSizing: 'border-box' }}>
       
       {/* KPI Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Active Packages</span>
             <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: '4px 0' }}>{activeCount} / {totalPlans}</h4>
           </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(124, 58, 237, 0.08)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(3, 80, 150, 0.08)', color: '#035096', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Layers size={18} />
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function AllPlansGrid() {
           onClick={() => navigate('/admin/plans/new')}
           style={{
             padding: '8px 16px',
-            background: 'linear-gradient(to right, #7c3aed, #4f46e5)',
+            background: 'linear-gradient(to right, #035096, #3fa9f5)',
             color: '#ffffff',
             border: 'none',
             borderRadius: '8px',
@@ -325,7 +325,7 @@ export default function AllPlansGrid() {
           <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '4px', marginBottom: '16px' }}>Get started by creating a new subscription package tier.</span>
           <button
             onClick={() => navigate('/admin/plans/new')}
-            style={{ padding: '8px 16px', background: '#7c3aed', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+            style={{ padding: '8px 16px', background: '#035096', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
           >
             Create First Plan
           </button>
@@ -387,8 +387,8 @@ export default function AllPlansGrid() {
                     {plan.badge && (
                       <span style={{
                         alignSelf: 'flex-start',
-                        background: 'rgba(124, 58, 237, 0.08)',
-                        color: '#7c3aed',
+                        background: 'rgba(3, 80, 150, 0.08)',
+                        color: '#035096',
                         fontSize: '0.65rem',
                         fontWeight: 700,
                         padding: '2px 8px',

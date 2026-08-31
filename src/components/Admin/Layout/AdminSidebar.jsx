@@ -167,10 +167,9 @@ export default function AdminSidebar({ onCloseMobile }) {
         {menuSections.map((section, idx) => (
           <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: idx === 0 ? '0px' : '24px' }}>
             {section.title && (
-              <span style={{ 
+              <span className="sidebar-section-title" style={{ 
                 fontSize: '0.725rem', 
                 fontWeight: 700, 
-                color: '#9ca3af', 
                 letterSpacing: '1px', 
                 paddingLeft: '12px',
                 marginBottom: '4px',
@@ -189,6 +188,7 @@ export default function AdminSidebar({ onCloseMobile }) {
                   key={item.id}
                   to={item.path}
                   onClick={onCloseMobile}
+                  className={`sidebar-menu-item ${isSelected ? 'active' : ''}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -198,11 +198,10 @@ export default function AdminSidebar({ onCloseMobile }) {
                     paddingLeft: isSelected ? '8px' : '12px',
                     borderRadius: '8px',
                     border: 'none',
-                    borderLeft: isSelected ? '4px solid #7c3aed' : '4px solid transparent',
+                    borderLeft: isSelected ? '4px solid #035096' : '4px solid transparent',
                     cursor: 'pointer',
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: isSelected ? '#7c3aed' : 'var(--text-muted)',
                     background: isSelected ? 'var(--accent-primary-glow)' : 'transparent',
                     transition: 'all 0.2s ease',
                     textAlign: 'left',
@@ -211,17 +210,15 @@ export default function AdminSidebar({ onCloseMobile }) {
                   onMouseEnter={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-muted)';
                     }
                   }}
                 >
-                  <Icon size={18} style={{ color: isSelected ? '#7c3aed' : '#6b7280' }} />
+                  <Icon size={18} className="sidebar-icon" />
                   <span>{item.label}</span>
                   {item.id === 'help-requests' && openCount > 0 && (
                     <span style={{

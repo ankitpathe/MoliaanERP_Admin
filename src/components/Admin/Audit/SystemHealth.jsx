@@ -221,7 +221,7 @@ export default function SystemHealth() {
       )}
 
       {/* KPI Stats Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -235,7 +235,7 @@ export default function SystemHealth() {
           </div>
         </div>
 
-        <StatCard label="Gateway Latency" value={`${latency} ms`} icon={Cpu} color="#4f46e5" />
+        <StatCard label="Gateway Latency" value={`${latency} ms`} icon={Cpu} color="#3fa9f5" />
         <StatCard label="LocalStorage Occupied" value={`${storageUsage.usedMB} MB / ${storageUsage.totalMB} MB`} icon={Database} color="#0891b2" />
         <StatCard label="Online POS Nodes" value={`${onlinePOSNodes} Node(s) Connected`} icon={Monitor} color="#10b981" />
       </div>
@@ -244,10 +244,10 @@ export default function SystemHealth() {
       <Card style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700 }}>
           <span style={{ color: '#1f2937' }}>Browser Storage Allocation Map</span>
-          <span style={{ color: '#7c3aed' }}>{storageUsage.percentUsed}% Utilized</span>
+          <span style={{ color: '#035096' }}>{storageUsage.percentUsed}% Utilized</span>
         </div>
         <div style={{ width: '100%', height: '10px', background: '#e5e7eb', borderRadius: '99px', overflow: 'hidden' }}>
-          <div style={{ width: `${storageUsage.percentUsed}%`, height: '100%', background: 'linear-gradient(to right, #7c3aed, #4f46e5)', borderRadius: '99px' }} />
+          <div style={{ width: `${storageUsage.percentUsed}%`, height: '100%', background: 'linear-gradient(to right, #035096, #3fa9f5)', borderRadius: '99px' }} />
         </div>
         <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>
           Real-time footprint calculated from current key values in localStorage against browser limit.

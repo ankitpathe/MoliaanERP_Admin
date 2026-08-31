@@ -477,7 +477,7 @@ export default function ActivityLogViewer() {
                 {/* Master Row */}
                 <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6', fontSize: '0.8rem', color: '#374151' }}>
                   <td style={{ padding: '14px 16px', width: '20px', cursor: 'pointer' }} onClick={() => toggleRow(log.id)}>
-                    {isExpanded ? <ChevronUp size={14} style={{ color: '#7c3aed' }} /> : <ChevronDown size={14} />}
+                    {isExpanded ? <ChevronUp size={14} style={{ color: '#035096' }} /> : <ChevronDown size={14} />}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -496,7 +496,7 @@ export default function ActivityLogViewer() {
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontWeight: 600 }}>{log.module}</span>
-                      <span style={{ fontSize: '0.675rem', color: '#7c3aed', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: '0.675rem', color: '#035096', fontFamily: 'monospace' }}>
                         {log.activityType}
                       </span>
                     </div>

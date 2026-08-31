@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Menu, Search, Bell, Sun, Moon, RefreshCw, Settings, 
   Maximize2, Users, Receipt, Database, Calendar, Monitor, 
-  Activity, ChevronDown, LogOut
+  Activity, ChevronDown, LogOut, ArrowLeft, MoreVertical
 } from 'lucide-react';
 import { useToast } from '../../../hooks/useToast';
 
@@ -35,6 +35,7 @@ export default function AdminHeader({
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [pendingSubsCount, setPendingSubsCount] = useState(0);
   const [pendingHelpCount, setPendingHelpCount] = useState(0);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Notifications states
   const [notifications, setNotifications] = useState([]);
@@ -290,7 +291,101 @@ export default function AdminHeader({
 
 
   return (
-    <header 
+    <>
+      <style>{`
+        .mobile-kebab-icon {
+          display: none !important;
+        }
+        @media (max-width: 768px) {
+          .header-status-label,
+          .header-admin-name {
+            display: none !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .header-search-desktop,
+          .attention-badges-group,
+          .header-status-dot {
+            display: none !important;
+          }
+          .header-search-mobile-trigger {
+            display: flex !important;
+          }
+          .desktop-settings-icon {
+            display: none !important;
+          }
+          .mobile-kebab-icon {
+            display: block !important;
+          }
+        }
+        @media (min-width: 641px) {
+          .header-search-mobile-trigger {
+            display: none !important;
+          }
+        }
+      `}</style>
+      {mobileSearchOpen ? (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'var(--bg-sidebar)',
+          zIndex: 1001,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          gap: '12px'
+        }}>
+          <button 
+            type="button"
+            onClick={() => setMobileSearchOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px'
+            }}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '8px 12px 8px 32px',
+                fontSize: '0.85rem',
+                borderRadius: '99px',
+                height: '40px',
+                boxSizing: 'border-box',
+                border: '1px solid var(--border-active)',
+                background: 'var(--bg-control)',
+                outline: 'none',
+                color: 'var(--text-primary)'
+              }}
+            />
+            <Search 
+              size={14} 
+              style={{ 
+                position: 'absolute', 
+                left: '12px', 
+                color: 'var(--text-muted)' 
+              }} 
+            />
+          </div>
+        </div>
+      ) : null}
+      <header 
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -350,7 +445,7 @@ export default function AdminHeader({
       </div>
 
       {/* CENTER SECTION (Search & Needs Attention Badges) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, justifySelf: 'start', maxWidth: '580px' }}>
+      <div className="header-search-desktop" style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, justifySelf: 'start', maxWidth: '580px' }}>
         <div style={{ 
           flex: 1, 
           maxWidth: '240px', 
@@ -525,6 +620,7 @@ export default function AdminHeader({
         
         {/* Unified Status Indicator */}
         <div 
+          className="header-status-dot"
           onClick={() => navigate('/admin/data-sync/report')}
           style={{
             display: 'inline-flex',
@@ -549,6 +645,28 @@ export default function AdminHeader({
           <span className="header-status-label">System Healthy</span>
         </div>
 
+        {/* Mobile search trigger */}
+        <button
+          className="header-search-mobile-trigger"
+          onClick={() => setMobileSearchOpen(true)}
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'none',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid var(--border-muted)',
+            background: 'var(--bg-control)',
+            color: 'var(--text-muted)',
+            flexShrink: 0,
+            boxSizing: 'border-box'
+          }}
+        >
+          <Search size={15} />
+        </button>
+
         {/* Notification Bell with Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
@@ -570,7 +688,8 @@ export default function AdminHeader({
               color: 'var(--text-muted)',
               position: 'relative',
               transition: 'all 0.2s ease',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
@@ -746,7 +865,7 @@ export default function AdminHeader({
         </div>
 
         {/* Settings gear dropdown */}
-        <div style={{ position: 'relative' }}>
+        <div className="header-settings-btn" style={{ position: 'relative' }}>
           <button
             onClick={() => {
               setSettingsMenuOpen(!settingsMenuOpen);
@@ -764,13 +883,16 @@ export default function AdminHeader({
               border: '1px solid var(--border-muted)',
               background: 'var(--bg-control)',
               color: 'var(--text-muted)',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+              boxSizing: 'border-box'
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control)'}
             title="Settings & Options"
           >
-            <Settings size={15} />
+            <Settings size={15} className="desktop-settings-icon" />
+            <MoreVertical size={16} className="mobile-kebab-icon" />
           </button>
           
           {settingsMenuOpen && (
@@ -912,13 +1034,14 @@ export default function AdminHeader({
               border: 'none',
               background: 'transparent',
               textAlign: 'left',
-              height: '36px'
+              height: '36px',
+              flexShrink: 0
             }}
           >
             <img 
               src={adminInfo.avatar} 
               alt={adminInfo.name} 
-              style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} 
+              style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} 
             />
             <span className="header-admin-name" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               {adminInfo.name}
@@ -940,19 +1063,19 @@ export default function AdminHeader({
                   padding: '12px 8px 8px 8px',
                   zIndex: 999,
                   borderRadius: '12px',
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
+                  border: '1px solid var(--border-muted)',
+                  background: 'var(--bg-card)',
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '4px'
                 }}
               >
-                <div style={{ padding: '4px 8px 10px 8px', borderBottom: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#111827', fontWeight: 700 }}>
+                <div style={{ padding: '4px 8px 10px 8px', borderBottom: '1px solid var(--border-muted)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                     Welcome Admin,
                   </span>
-                  <span style={{ fontSize: '0.725rem', color: '#6b7280', fontWeight: 500 }}>
+                  <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                     {adminInfo.name}
                   </span>
                 </div>
@@ -970,17 +1093,17 @@ export default function AdminHeader({
                     background: 'transparent',
                     border: 'none',
                     borderRadius: '8px',
-                    color: '#374151',
+                    color: 'var(--text-primary)',
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: '0.8rem',
                     width: '100%',
                     fontWeight: 600
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <Users size={14} style={{ color: '#4b5563' }} />
+                  <Users size={14} style={{ color: 'var(--text-muted)' }} />
                   Merchant Profiles
                 </button>
 
@@ -1001,7 +1124,7 @@ export default function AdminHeader({
                     width: '100%',
                     fontWeight: 700
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ecfeff'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(8, 145, 178, 0.08)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <Database size={14} style={{ color: '#0891b2' }} />
@@ -1021,17 +1144,17 @@ export default function AdminHeader({
                     background: 'transparent',
                     border: 'none',
                     borderRadius: '8px',
-                    color: '#374151',
+                    color: 'var(--text-primary)',
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: '0.8rem',
                     width: '100%',
                     fontWeight: 600
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-control-hover)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <Settings size={14} style={{ color: '#4b5563' }} />
+                  <Settings size={14} style={{ color: 'var(--text-muted)' }} />
                   Settings
                 </button>
 
@@ -1051,11 +1174,11 @@ export default function AdminHeader({
                     fontSize: '0.8rem',
                     width: '100%',
                     fontWeight: 600,
-                    borderTop: '1px solid #f3f4f6',
+                    borderTop: '1px solid var(--border-muted)',
                     marginTop: '4px',
                     paddingTop: '8px'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <LogOut size={14} style={{ color: '#ef4444' }} />
@@ -1089,5 +1212,6 @@ export default function AdminHeader({
         }
       `}</style>
     </header>
+    </>
   );
 }

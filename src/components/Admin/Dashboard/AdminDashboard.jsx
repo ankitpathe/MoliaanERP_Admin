@@ -334,7 +334,7 @@ export default function AdminDashboard() {
   const pendingRequests = subRequests.filter(r => r.status === 'PENDING');
 
   const statCards = [
-    { label: 'POS Terminals', value: metrics.totalCounters, subtext: `${metrics.onlineCounters} Online`, icon: Monitor, color: '#7c3aed', path: '/admin/counters/reports' },
+    { label: 'POS Terminals', value: metrics.totalCounters, subtext: `${metrics.onlineCounters} Online`, icon: Monitor, color: '#035096', path: '/admin/counters/reports' },
     { label: 'Active SaaS Tiers', value: metrics.activePlans, subtext: 'Configured SaaS tiers', icon: PlusSquare, color: '#10b981', path: '/admin/plans' },
     { label: 'Registered Merchants', value: metrics.totalMerchants, subtext: 'Active accounts', icon: Users, color: '#0891b2', path: '/admin/users' },
     { label: 'Gross Platform Volume', value: `₹${metrics.grossVolume.toLocaleString('en-IN')}`, subtext: 'Total processed volume', icon: TrendingUp, color: '#dc2626', path: '/admin/reports/invoices' }
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* 4 Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         {statCards.map((card, idx) => (
           <div key={idx} onClick={() => navigate(card.path)} style={{ cursor: 'pointer' }}>
             <StatCard 
@@ -401,7 +401,7 @@ export default function AdminDashboard() {
         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
           Quick Action Launchpad
         </span>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div className="quick-actions-grid">
           {quickActions.map((action, idx) => {
             const Icon = action.icon;
             return (
@@ -409,8 +409,6 @@ export default function AdminDashboard() {
                 key={idx}
                 onClick={() => navigate(action.path)}
                 style={{
-                  flex: 1,
-                  minWidth: '120px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -423,7 +421,7 @@ export default function AdminDashboard() {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#7c3aed';
+                  e.currentTarget.style.borderColor = '#035096';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={e => {
@@ -435,8 +433,8 @@ export default function AdminDashboard() {
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
-                  background: 'rgba(124, 58, 237, 0.08)',
-                  color: '#7c3aed',
+                  background: 'rgba(3, 80, 150, 0.08)',
+                  color: '#035096',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -790,7 +788,7 @@ export default function AdminDashboard() {
 
               <button style={{
                 padding: '10px 20px',
-                background: '#7c3aed',
+                background: '#035096',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',

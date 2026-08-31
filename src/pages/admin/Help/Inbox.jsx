@@ -255,7 +255,7 @@ export default function HelpInbox() {
       />
 
       {/* KPI Stats Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         <StatCard label="Total Requests" value={totalCount} icon={MessageSquare} color="#3b82f6" />
         <StatCard label="Open" value={openCount} icon={AlertCircle} color="#ef4444" />
         <StatCard label="In Progress" value={inProgressCount} icon={Clock} color="#f59e0b" />
@@ -263,7 +263,7 @@ export default function HelpInbox() {
       </div>
 
       {/* Filter Controls */}
-      <Card style={{ padding: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <Card className="responsive-filter-bar" style={{ padding: '16px' }}>
         <div style={{ flex: 1, minWidth: '240px' }}>
           <Input 
             placeholder="Search by sender name, issue summary..." 
@@ -292,65 +292,103 @@ export default function HelpInbox() {
 
       {/* Requests Inbox Table */}
       <Card style={{ padding: '16px' }}>
-        <Table headers={[{ label: 'Sender' }, { label: 'Subject / Summary' }, { label: 'Priority' }, { label: 'Status' }, { label: 'Date Received' }, { label: 'Action', style: { textAlign: 'right' } }]}>
+        <div className="desktop-view">
+          <Table headers={[{ label: 'Sender' }, { label: 'Subject / Summary' }, { label: 'Priority' }, { label: 'Status' }, { label: 'Date Received' }, { label: 'Action', style: { textAlign: 'right' } }]}>
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
+                  No help requests matched your filters.
+                </td>
+              </tr>
+            ) : (
+              sorted.map(req => {
+                const dateStr = new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                return (
+                  <tr 
+                    key={req.id} 
+                    style={{ 
+                      borderBottom: '1px solid var(--border-muted)', 
+                      fontSize: '0.825rem', 
+                      color: 'var(--text-primary)',
+                      background: req.status === 'open' && req.priority === 'urgent' 
+                        ? (document.documentElement.classList.contains('dark') ? 'rgba(239, 68, 68, 0.15)' : '#fff5f5') 
+                        : 'transparent'
+                    }}
+                  >
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <strong style={{ color: 'var(--text-primary)' }}>{req.senderName}</strong>
+                        <div>
+                          <Badge variant="secondary">{req.senderType.toUpperCase()}</Badge>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{req.subject}</span>
+                        <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '280px' }}>
+                          {req.description}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <Badge variant={getPriorityBadgeVariant(req.priority)}>
+                        {req.priority.toUpperCase()}
+                      </Badge>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <Badge variant={getStatusBadgeVariant(req.status)}>
+                        {req.status === 'in_progress' ? 'IN PROGRESS' : req.status.toUpperCase()}
+                      </Badge>
+                    </td>
+                    <td style={{ padding: '14px 16px', color: '#6b7280' }}>{dateStr}</td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                      <Button variant="secondary" onClick={() => setViewingRequest(req)} style={{ padding: '4px 10px', fontSize: '0.725rem' }}>
+                        View Request
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </Table>
+        </div>
+
+        <div className="mobile-view">
           {sorted.length === 0 ? (
-            <tr>
-              <td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center', color: '#6b7280' }}>
-                No help requests matched your filters.
-              </td>
-            </tr>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+              No help requests matched your filters.
+            </div>
           ) : (
             sorted.map(req => {
               const dateStr = new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
               return (
-                <tr 
-                  key={req.id} 
-                  style={{ 
-                    borderBottom: '1px solid var(--border-muted)', 
-                    fontSize: '0.825rem', 
-                    color: 'var(--text-primary)',
-                    background: req.status === 'open' && req.priority === 'urgent' 
-                      ? (document.documentElement.classList.contains('dark') ? 'rgba(239, 68, 68, 0.15)' : '#fff5f5') 
-                      : 'transparent'
-                  }}
-                >
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>{req.senderName}</strong>
-                      <div>
-                        <Badge variant="secondary">{req.senderType.toUpperCase()}</Badge>
-                      </div>
+                <div key={req.id} style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--bg-control)', border: '1px solid var(--border-muted)', borderRadius: '12px', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{req.senderName}</strong>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{req.senderType.toUpperCase()}</span>
                     </div>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{req.subject}</span>
-                      <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                        {req.description}
-                      </span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <Badge variant={getPriorityBadgeVariant(req.priority)}>{req.priority.toUpperCase()}</Badge>
+                      <Badge variant={getStatusBadgeVariant(req.status)}>{req.status === 'in_progress' ? 'IN PROG' : req.status.toUpperCase()}</Badge>
                     </div>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <Badge variant={getPriorityBadgeVariant(req.priority)}>
-                      {req.priority.toUpperCase()}
-                    </Badge>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <Badge variant={getStatusBadgeVariant(req.status)}>
-                      {req.status === 'in_progress' ? 'IN PROGRESS' : req.status.toUpperCase()}
-                    </Badge>
-                  </td>
-                  <td style={{ padding: '14px 16px', color: '#6b7280' }}>{dateStr}</td>
-                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <Button variant="secondary" onClick={() => setViewingRequest(req)} style={{ padding: '4px 10px', fontSize: '0.725rem' }}>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--border-muted)', paddingTop: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{req.subject}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{req.description}</div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-muted)', paddingTop: '8px', fontSize: '0.75rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{dateStr}</span>
+                    <Button variant="secondary" onClick={() => setViewingRequest(req)} style={{ padding: '4px 10px', fontSize: '0.7rem' }}>
                       View Request
                     </Button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               );
             })
           )}
-        </Table>
+        </div>
       </Card>
 
       {/* Details drawer/modal overlay */}
@@ -401,7 +439,7 @@ export default function HelpInbox() {
                   <Link 
                     to={`/admin/counters/${viewingRequest.senderId}`}
                     onClick={() => setViewingRequest(null)}
-                    style={{ color: '#4f46e5', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                    style={{ color: '#3fa9f5', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
                   >
                     View Counter <ArrowRight size={12} />
                   </Link>
@@ -409,7 +447,7 @@ export default function HelpInbox() {
                   <Link 
                     to={`/admin/users/${viewingRequest.senderId}`}
                     onClick={() => setViewingRequest(null)}
-                    style={{ color: '#4f46e5', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                    style={{ color: '#3fa9f5', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
                   >
                     View Profile <ArrowRight size={12} />
                   </Link>
@@ -429,7 +467,7 @@ export default function HelpInbox() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="responsive-two-cols">
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Priority</span>
                 <div style={{ marginTop: '4px' }}>
@@ -463,7 +501,7 @@ export default function HelpInbox() {
               
               {viewingRequest.adminReply && (
                 <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#7c3aed', fontWeight: 700, marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#035096', fontWeight: 700, marginBottom: '4px' }}>
                     <CornerDownRight size={12} /> Admin Reply Response:
                   </div>
                   <p style={{ fontSize: '0.8rem', color: '#4b5563', margin: 0 }}>{viewingRequest.adminReply}</p>

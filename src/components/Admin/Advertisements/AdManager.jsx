@@ -478,13 +478,13 @@ export default function AdManager() {
       </div>
 
       {/* Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+      <div className="responsive-grid-4">
         <div style={{ background: '#ffffff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>Active Campaigns</span>
             <h4 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: '4px 0' }}>{activeCount} / {ads.length}</h4>
           </div>
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(124, 58, 237, 0.08)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(3, 80, 150, 0.08)', color: '#035096', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Megaphone size={18} />
           </div>
         </div>
@@ -523,13 +523,13 @@ export default function AdManager() {
       {/* Section 1: Idle Screen-Saver Settings Card */}
       <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-          <Settings size={18} style={{ color: '#7c3aed' }} />
+          <Settings size={18} style={{ color: '#035096' }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Section 1 - Idle Screen-Saver Settings
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+        <div className="responsive-grid-4">
           
           {/* Toggle Switch */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -542,7 +542,7 @@ export default function AdManager() {
                   width: '40px',
                   height: '22px',
                   borderRadius: '99px',
-                  background: enableIdleAds ? '#7c3aed' : '#d1d5db',
+                  background: enableIdleAds ? '#035096' : '#d1d5db',
                   border: 'none',
                   position: 'relative',
                   cursor: 'pointer',
@@ -560,7 +560,7 @@ export default function AdManager() {
                   transition: 'left 0.2s'
                 }} />
               </button>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: enableIdleAds ? '#7c3aed' : '#4b5563' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: enableIdleAds ? '#035096' : '#4b5563' }}>
                 {enableIdleAds ? 'Enabled' : 'Disabled'}
               </span>
             </div>
@@ -601,7 +601,7 @@ export default function AdManager() {
             onClick={handleSaveAdPolicy}
             style={{
               padding: '8px 16px',
-              background: '#7c3aed',
+              background: '#035096',
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
@@ -621,7 +621,7 @@ export default function AdManager() {
         {/* Banner Upload Form */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Plus size={18} style={{ color: '#7c3aed' }} />
+            <Plus size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {editingIdleBanner ? 'Edit Screen-Saver Banner' : 'Upload Screen-Saver Banner'}
             </span>
@@ -700,7 +700,7 @@ export default function AdManager() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="responsive-two-cols">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>CTA Button Text</span>
                 <input 
@@ -766,7 +766,7 @@ export default function AdManager() {
         {/* Media Gallery / Table */}
         <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
-            <Monitor size={18} style={{ color: '#7c3aed' }} />
+            <Monitor size={18} style={{ color: '#035096' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Screen-Saver Gallery
             </span>
@@ -1164,7 +1164,7 @@ export default function AdManager() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="responsive-two-cols">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b5563' }}>Priority</span>
                   <Select 

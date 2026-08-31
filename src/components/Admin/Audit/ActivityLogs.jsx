@@ -233,9 +233,9 @@ export default function ActivityLogs() {
       />
 
       {/* KPI Stats Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <StatCard label="Total Events" value={totalEvents} icon={Layers} color="#4f46e5" />
-        <StatCard label="Security Audits" value={securityAudits} icon={ShieldAlert} color="#7c3aed" />
+      <div className="responsive-grid-4">
+        <StatCard label="Total Events" value={totalEvents} icon={Layers} color="#3fa9f5" />
+        <StatCard label="Security Audits" value={securityAudits} icon={ShieldAlert} color="#035096" />
         <StatCard label="Data Mutations" value={dataMutations} icon={Cpu} color="#0891b2" />
         <StatCard label="Critical Alerts" value={criticalAlerts} icon={ShieldAlert} color="#ef4444" />
       </div>
